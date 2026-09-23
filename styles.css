@@ -126,10 +126,17 @@ a{color:var(--teal);text-decoration:none;}
 
 /* map section, full width */
 .mapsection{margin:20px 0 0;background:var(--bg-1);border:1px solid var(--line);border-radius:16px;overflow:hidden;}
-.mapsection-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);}
+.mapsection-head{display:flex;flex-direction:column;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line);}
+.mapsection-head-top{display:flex;align-items:center;justify-content:space-between;}
+.mapsection-head-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
 .mapsection-head h2{margin:0;font-family:var(--display);font-size:14.5px;font-weight:600;}
 .roundtag{font-size:11px;font-family:var(--mono);padding:4px 9px;border-radius:20px;border:1px solid var(--line-strong);color:var(--text-1);}
 .maphint{font-size:11px;color:var(--text-2);}
+.labeltoggles{display:flex;gap:6px;}
+.labeltoggle{background:var(--bg-2);border:1px solid var(--line-strong);color:var(--text-1);font-size:11.5px;font-weight:500;padding:6px 12px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;}
+.labeltoggle::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--bg-4);border:1px solid var(--line-strong);}
+.labeltoggle.active{background:var(--bg-4);color:var(--text-0);border-color:var(--line-strong);}
+.labeltoggle.active::before{background:var(--teal);border-color:var(--teal);}
 
 #map{width:100%;height:min(74vh,760px);min-height:440px;background:#0a1319;}
 .leaflet-container{font-family:var(--sans);background:#0a1319;}
@@ -141,6 +148,8 @@ a{color:var(--teal);text-decoration:none;}
 .grid-label-tip::before{display:none;}
 .point-label-tip{background:rgba(10,17,22,0.72);border:none;color:#EDF3F5;font-family:var(--mono);font-size:9.5px;box-shadow:none;padding:1px 4px;border-radius:4px;}
 .point-label-tip::before{display:none;}
+#map.hide-grid-labels .grid-label-tip{display:none;}
+#map.hide-point-labels .point-label-tip{display:none;}
 
 .legend{display:flex;flex-wrap:wrap;gap:14px 20px;padding:13px 18px;border-top:1px solid var(--line);}
 .legend-item{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-1);}

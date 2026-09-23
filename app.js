@@ -18,6 +18,7 @@ POINTS.forEach(function (p) { POINT_BY_ID[p.id] = p; });
 --------------------------------------------------------------------- */
 var STORAGE_KEY = "oilspill_sampling_v2";
 var THEME_KEY = "oilspill_theme";
+var LABELS_KEY = "oilspill_labels";
 var COLORS = {
   done: "#3BD488", doneStroke: "#22B871",
   issue: "#F2635C", issueStroke: "#D8433C",
@@ -40,6 +41,8 @@ var state = {
   lightbox: null,
   toast: null,
   theme: localStorage.getItem(THEME_KEY) || "dark",
+  showGridLabels: localStorage.getItem(LABELS_KEY + "_grid") !== "off",
+  showPointLabels: localStorage.getItem(LABELS_KEY + "_point") !== "off",
   reports: {},
   gridNotes: {}
 };
@@ -98,8 +101,8 @@ function allBounds() {
 }
 
 function initMap() {
-  map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: 15, maxZoom: 22 });
-  L.tileLayer(ESRI_URL, { maxZoom: 22, maxNativeZoom: 19, attribution: ESRI_ATTR }).addTo(map);
+  map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: 15, maxZoom: 21 });
+  L.tileLayer(ESRI_URL, { maxZoom: 21, maxNativeZoom: 17, attribution: ESRI_ATTR }).addTo(map);
   L.control.scale({ metric: true, imperial: false, position: "bottomleft" }).addTo(map);
   map.fitBounds(allBounds(), { padding: [36, 36] });
 
@@ -360,6 +363,31 @@ function toggleTheme() {
 }
 
 /* ---------------------------------------------------------------------
+   Map label visibility
+--------------------------------------------------------------------- */
+function applyLabelVisibility() {
+  var mapEl = document.getElementById("map");
+  if (mapEl) {
+    mapEl.classList.toggle("hide-grid-labels", !state.showGridLabels);
+    mapEl.classList.toggle("hide-point-labels", !state.showPointLabels);
+  }
+  var gridBtn = document.getElementById("toggleGridLabels");
+  if (gridBtn) gridBtn.className = "labeltoggle" + (state.showGridLabels ? " active" : "");
+  var pointBtn = document.getElementById("togglePointLabels");
+  if (pointBtn) pointBtn.className = "labeltoggle" + (state.showPointLabels ? " active" : "");
+}
+function toggleGridLabels() {
+  state.showGridLabels = !state.showGridLabels;
+  localStorage.setItem(LABELS_KEY + "_grid", state.showGridLabels ? "on" : "off");
+  applyLabelVisibility();
+}
+function togglePointLabels() {
+  state.showPointLabels = !state.showPointLabels;
+  localStorage.setItem(LABELS_KEY + "_point", state.showPointLabels ? "on" : "off");
+  applyLabelVisibility();
+}
+
+/* ---------------------------------------------------------------------
    Icons
 --------------------------------------------------------------------- */
 var ICONS = {
@@ -608,6 +636,8 @@ function onAction(e) {
   else if (action === "back-grid") backToGrid();
   else if (action === "back-overview") backToOverview();
   else if (action === "toggle-theme") toggleTheme();
+  else if (action === "toggle-grid-labels") toggleGridLabels();
+  else if (action === "toggle-point-labels") togglePointLabels();
   else if (action === "close-toast") { state.toast = null; renderToast(); }
   else if (action === "close-lightbox") { state.lightbox = null; renderLightbox(); }
   else if (action === "clear-search") { state.search = ""; document.getElementById("searchInput").value = ""; render(); }
@@ -669,6 +699,7 @@ function boot() {
 
   applyTheme();
   initMap();
+  applyLabelVisibility();
   render();
 
   document.body.addEventListener("click", onAction);
