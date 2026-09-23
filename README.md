@@ -5,6 +5,11 @@ Repositori ini menyimpan data sumber dan berkas aplikasi untuk pemantauan sampli
 ## Isi repositori
 
 ```
+index.html                 Halaman aplikasi yang disajikan oleh GitHub Pages
+support.js                 Mesin render aplikasi
+vendor/react.js            Pustaka React yang dipakai aplikasi
+vendor/react-dom.js        Pustaka React DOM yang dipakai aplikasi
+
 data/
   GRID.kml                 Data grid area sampling (poligon), 17 area
   HYB_Sample_Point.kml     Data 73 titik sampling beserta kode dan koordinatnya
@@ -29,6 +34,10 @@ Aplikasi peta dan dashboard sampling dibangun sebagai Claude Artifact bertipe De
 - Dashboard ringkasan progres, termasuk perbandingan tahap sebelum dan sesudah recovery serta daftar area yang paling memerlukan perhatian
 - Ekspor dan impor data dalam format JSON untuk pencadangan dan berbagi data antar perangkat
 
-Berkas `app/project/Main.dc.html` dan `app/project/canvas.json` di sini adalah salinan sumber dari aplikasi tersebut, disimpan sebagai cadangan dan riwayat perubahan. Berkas ini bergantung pada landasan runtime milik platform Claude Artifacts (skrip pendukung dan mesin render kanvas) yang tidak disertakan di repositori ini, sehingga tidak dapat dijalankan langsung sebagai halaman web mandiri di luar platform tersebut.
+Aplikasi yang aktif dan dapat digunakan dapat dibuka melalui tautan Claude Artifact yang telah dibagikan kepada tim. `index.html` beserta `support.js` dan `vendor/` di akar repositori ini adalah salinan mandiri dari aplikasi tersebut, disajikan lewat GitHub Pages sehingga dapat dibuka tanpa masuk ke Claude. Berkas `app/project/Main.dc.html` dan `app/project/canvas.json` adalah berkas sumber komponennya, disimpan sebagai riwayat perubahan.
 
-Aplikasi yang aktif dan dapat digunakan dapat dibuka melalui tautan Claude Artifact yang telah dibagikan kepada tim.
+## Membuka lewat GitHub Pages
+
+Situs ini disajikan dari cabang `claude/stoic-cannon-ew2fbf`. Bila halaman GitHub Pages belum juga muncul, periksa pengaturannya di repositori GitHub, pada menu Settings kemudian Pages, pastikan bagian Source diatur ke Deploy from branch, dengan cabang `claude/stoic-cannon-ew2fbf` dan folder root (/) dipilih, lalu simpan. Setelah tersimpan, GitHub biasanya butuh waktu singkat sebelum halamannya bisa diakses.
+
+Berkas ini hanya bisa dijalankan lewat server seperti GitHub Pages, bukan dengan membuka `index.html` langsung dari komputer, karena browser memblokir skrip yang dibutuhkan halaman ini saat dibuka dengan cara tersebut.
