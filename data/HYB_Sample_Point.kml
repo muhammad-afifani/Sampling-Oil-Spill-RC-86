@@ -1,0 +1,2105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>HYB FIX.txt</name>
+	<open>1</open>
+	<atom:link rel="app" href="https://www.google.com/earth/about/versions/#earth-pro" title="Google Earth Pro 7.3.7.1327"></atom:link>
+	<Schema name="HYB FIX" id="S_HYB_FIX_SSS">
+		<SimpleField type="string" name="X">
+			<displayName>&lt;b&gt;X&lt;/b&gt;</displayName>
+		</SimpleField>
+		<SimpleField type="string" name="Y">
+			<displayName>&lt;b&gt;Y&lt;/b&gt;</displayName>
+		</SimpleField>
+		<SimpleField type="string" name="DESC">
+			<displayName>&lt;b&gt;DESC&lt;/b&gt;</displayName>
+		</SimpleField>
+	</Schema>
+	<Style id="hlightPointStyle0">
+		<IconStyle>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle_highlight.png</href>
+			</Icon>
+		</IconStyle>
+		<BalloonStyle>
+			<text><![CDATA[<table border="0">
+  <tr><td><b>X</b></td><td>$[HYB FIX/X]</td></tr>
+  <tr><td><b>Y</b></td><td>$[HYB FIX/Y]</td></tr>
+  <tr><td><b>DESC</b></td><td>$[HYB FIX/DESC]</td></tr>
+</table>]]></text>
+		</BalloonStyle>
+	</Style>
+	<Style id="normPointStyle0">
+		<IconStyle>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href>
+			</Icon>
+		</IconStyle>
+		<BalloonStyle>
+			<text><![CDATA[<table border="0">
+  <tr><td><b>X</b></td><td>$[HYB FIX/X]</td></tr>
+  <tr><td><b>Y</b></td><td>$[HYB FIX/Y]</td></tr>
+  <tr><td><b>DESC</b></td><td>$[HYB FIX/DESC]</td></tr>
+</table>]]></text>
+		</BalloonStyle>
+	</Style>
+	<StyleMap id="pointStyleMap0">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#normPointStyle0</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#hlightPointStyle0</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Folder id="layer 0">
+		<name>HYB FIX</name>
+		<open>1</open>
+		<Placemark>
+			<name>GRID13.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 24.399 S</SimpleData>
+					<SimpleData name="Y">117 15 54.336 E</SimpleData>
+					<SimpleData name="DESC">GRID13.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2650933333333,-0.8567774999999944,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID13.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 24.199 S</SimpleData>
+					<SimpleData name="Y">117 15 55.431 E</SimpleData>
+					<SimpleData name="DESC">GRID13.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2653975,-0.8567219444444385,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID13.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 23.997 S</SimpleData>
+					<SimpleData name="Y">117 15 56.343 E</SimpleData>
+					<SimpleData name="DESC">GRID13.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2656508333333,-0.856665833333321,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID13.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 23.863 S</SimpleData>
+					<SimpleData name="Y">117 15 57.041 E</SimpleData>
+					<SimpleData name="DESC">GRID13.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2658447222223,-0.8566286111111165,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID13.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 23.755 S</SimpleData>
+					<SimpleData name="Y">117 15 57.797 E</SimpleData>
+					<SimpleData name="DESC">GRID13.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2660547222222,-0.8565986111111124,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID12.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.011 S</SimpleData>
+					<SimpleData name="Y">117 15 57.502 E</SimpleData>
+					<SimpleData name="DESC">GRID12.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2659727777778,-0.8558363888888931,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID12.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.194 S</SimpleData>
+					<SimpleData name="Y">117 15 57.666 E</SimpleData>
+					<SimpleData name="DESC">GRID12.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2660183333334,-0.8556094444444362,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID12.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.353 S</SimpleData>
+					<SimpleData name="Y">117 15 57.785 E</SimpleData>
+					<SimpleData name="DESC">GRID12.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2660513888889,-0.8553758333333406,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID12.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.630 S</SimpleData>
+					<SimpleData name="Y">117 15 57.874 E</SimpleData>
+					<SimpleData name="DESC">GRID12.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2660761111111,-0.8551749999999969,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID12.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 17.726 S</SimpleData>
+					<SimpleData name="Y">117 15 57.969 E</SimpleData>
+					<SimpleData name="DESC">GRID12.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2661025,-0.8549238888888921,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID11.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 17.605 S</SimpleData>
+					<SimpleData name="Y">117 15 57.289 E</SimpleData>
+					<SimpleData name="DESC">GRID11.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2659136111111,-0.8548902777777778,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID11.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 17.547 S</SimpleData>
+					<SimpleData name="Y">117 15 56.649 E</SimpleData>
+					<SimpleData name="DESC">GRID11.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2657358333334,-0.8548741666666526,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID11.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 17.507 S</SimpleData>
+					<SimpleData name="Y">117 15 56.086 E</SimpleData>
+					<SimpleData name="DESC">GRID11.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2655794444444,-0.8548630555555614,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID11.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 17.485 S</SimpleData>
+					<SimpleData name="Y">117 15 55.475 E</SimpleData>
+					<SimpleData name="DESC">GRID11.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2654097222222,-0.8548569444444443,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID11.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 17.459 S</SimpleData>
+					<SimpleData name="Y">117 15 54.911 E</SimpleData>
+					<SimpleData name="DESC">GRID11.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2652530555555,-0.854849722222204,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID7.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.100 S</SimpleData>
+					<SimpleData name="Y">117 15 54.734 E</SimpleData>
+					<SimpleData name="DESC">GRID7.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2652038888889,-0.8550277777777637,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID7.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.504 S</SimpleData>
+					<SimpleData name="Y">117 15 54.753 E</SimpleData>
+					<SimpleData name="DESC">GRID7.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2652091666666,-0.8551399999999987,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID7.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.217 S</SimpleData>
+					<SimpleData name="Y">117 15 55.141 E</SimpleData>
+					<SimpleData name="DESC">GRID7.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2653169444445,-0.8550602777777749,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID4.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.195 S</SimpleData>
+					<SimpleData name="Y">117 15 55.587 E</SimpleData>
+					<SimpleData name="DESC">GRID4.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2654408333334,-0.8550541666666578,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID4.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.600 S</SimpleData>
+					<SimpleData name="Y">117 15 55.824 E</SimpleData>
+					<SimpleData name="DESC">GRID4.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2655066666667,-0.8551666666666535,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID4.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.246 S</SimpleData>
+					<SimpleData name="Y">117 15 56.202 E</SimpleData>
+					<SimpleData name="DESC">GRID4.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2656116666667,-0.8550683333333176,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID1.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.246 S</SimpleData>
+					<SimpleData name="Y">117 15 56.563 E</SimpleData>
+					<SimpleData name="DESC">GRID1.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2657119444444,-0.8550683333333176,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID1.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.313 S</SimpleData>
+					<SimpleData name="Y">117 15 57.274 E</SimpleData>
+					<SimpleData name="DESC">GRID1.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2659094444444,-0.8550869444444498,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID1.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.154 S</SimpleData>
+					<SimpleData name="Y">117 15 57.088 E</SimpleData>
+					<SimpleData name="DESC">GRID1.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2658577777778,-0.8553205555555454,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID1.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.695 S</SimpleData>
+					<SimpleData name="Y">117 15 56.780 E</SimpleData>
+					<SimpleData name="DESC">GRID1.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2657722222222,-0.8551930555555676,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID1.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.074 S</SimpleData>
+					<SimpleData name="Y">117 15 56.406 E</SimpleData>
+					<SimpleData name="DESC">GRID1.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2656683333334,-0.855298333333343,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID4.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.050 S</SimpleData>
+					<SimpleData name="Y">117 15 56.031 E</SimpleData>
+					<SimpleData name="DESC">GRID4.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2655641666667,-0.8552916666666643,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID4.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.900 S</SimpleData>
+					<SimpleData name="Y">117 15 55.421 E</SimpleData>
+					<SimpleData name="DESC">GRID4.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2653947222223,-0.8552500000000074,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID7.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.946 S</SimpleData>
+					<SimpleData name="Y">117 15 54.982 E</SimpleData>
+					<SimpleData name="DESC">GRID7.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2652727777778,-0.8552627777777633,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID7.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 18.895 S</SimpleData>
+					<SimpleData name="Y">117 15 54.184 E</SimpleData>
+					<SimpleData name="DESC">GRID7.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2650511111111,-0.8552486111111035,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID10.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.072 S</SimpleData>
+					<SimpleData name="Y">117 15 53.690 E</SimpleData>
+					<SimpleData name="DESC">GRID10.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2649138888889,-0.8552977777777615,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>SED4.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.245 S</SimpleData>
+					<SimpleData name="Y">117 15 53.117 E</SimpleData>
+					<SimpleData name="DESC">SED4.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2647547222222,-0.8553458333333364,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID8.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.296 S</SimpleData>
+					<SimpleData name="Y">117 15 54.030 E</SimpleData>
+					<SimpleData name="DESC">GRID8.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2650083333333,-0.8553599999999961,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID8.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.367 S</SimpleData>
+					<SimpleData name="Y">117 15 54.876 E</SimpleData>
+					<SimpleData name="DESC">GRID8.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2652433333333,-0.8553797222222115,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID5.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.345 S</SimpleData>
+					<SimpleData name="Y">117 15 55.300 E</SimpleData>
+					<SimpleData name="DESC">GRID5.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2653611111111,-0.8553736111111143,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID5.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.397 S</SimpleData>
+					<SimpleData name="Y">117 15 56.050 E</SimpleData>
+					<SimpleData name="DESC">GRID5.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2655694444444,-0.8553880555555549,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID2.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.461 S</SimpleData>
+					<SimpleData name="Y">117 15 56.379 E</SimpleData>
+					<SimpleData name="DESC">GRID2.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2656608333333,-0.8554058333333248,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID2.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.451 S</SimpleData>
+					<SimpleData name="Y">117 15 57.090 E</SimpleData>
+					<SimpleData name="DESC">GRID2.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2658583333333,-0.855403055555537,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID2.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.819 S</SimpleData>
+					<SimpleData name="Y">117 15 56.649 E</SimpleData>
+					<SimpleData name="DESC">GRID2.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2657358333334,-0.8555052777777838,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID2.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.317 S</SimpleData>
+					<SimpleData name="Y">117 15 57.012 E</SimpleData>
+					<SimpleData name="DESC">GRID2.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2658366666667,-0.8556436111111121,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID2.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.184 S</SimpleData>
+					<SimpleData name="Y">117 15 56.328 E</SimpleData>
+					<SimpleData name="DESC">GRID2.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2656466666667,-0.8556066666666684,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID5.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.159 S</SimpleData>
+					<SimpleData name="Y">117 15 55.827 E</SimpleData>
+					<SimpleData name="DESC">GRID5.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2655075,-0.8555997222222289,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID5.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.750 S</SimpleData>
+					<SimpleData name="Y">117 15 55.597 E</SimpleData>
+					<SimpleData name="DESC">GRID5.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2654436111111,-0.8554861111111101,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID5.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.110 S</SimpleData>
+					<SimpleData name="Y">117 15 55.131 E</SimpleData>
+					<SimpleData name="DESC">GRID5.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2653141666666,-0.8555861111111107,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID8.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.032 S</SimpleData>
+					<SimpleData name="Y">117 15 54.749 E</SimpleData>
+					<SimpleData name="DESC">GRID8.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2652080555555,-0.8555644444444299,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID8.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.679 S</SimpleData>
+					<SimpleData name="Y">117 15 54.502 E</SimpleData>
+					<SimpleData name="DESC">GRID8.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2651394444445,-0.8554663888888947,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID8.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.998 S</SimpleData>
+					<SimpleData name="Y">117 15 54.083 E</SimpleData>
+					<SimpleData name="DESC">GRID8.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2650230555555,-0.8555550000000034,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID9.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.369 S</SimpleData>
+					<SimpleData name="Y">117 15 53.936 E</SimpleData>
+					<SimpleData name="DESC">GRID9_1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2649822222222,-0.8556580555555526,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID10.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.522 S</SimpleData>
+					<SimpleData name="Y">117 15 53.550 E</SimpleData>
+					<SimpleData name="DESC">GRID10.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.264875,-0.8554227777777923,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID10.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 19.915 S</SimpleData>
+					<SimpleData name="Y">117 15 53.396 E</SimpleData>
+					<SimpleData name="DESC">GRID10.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2648322222223,-0.8555319444444387,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>SED4.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.332 S</SimpleData>
+					<SimpleData name="Y">117 15 52.524 E</SimpleData>
+					<SimpleData name="DESC">SED4.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.26459,-0.8556477777777838,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID10.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.425 S</SimpleData>
+					<SimpleData name="Y">117 15 53.324 E</SimpleData>
+					<SimpleData name="DESC">GRID10.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2648122222222,-0.8556736111111163,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID10.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.922 S</SimpleData>
+					<SimpleData name="Y">117 15 53.036 E</SimpleData>
+					<SimpleData name="DESC">GRID10.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2647322222222,-0.8558116666666438,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID9.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.040 S</SimpleData>
+					<SimpleData name="Y">117 15 53.759 E</SimpleData>
+					<SimpleData name="DESC">GRID9_4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2649330555556,-0.8558444444444357,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID9.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.783 S</SimpleData>
+					<SimpleData name="Y">117 15 54.235 E</SimpleData>
+					<SimpleData name="DESC">GRID9_3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2650652777778,-0.8557730555555354,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID9.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.034 S</SimpleData>
+					<SimpleData name="Y">117 15 54.503 E</SimpleData>
+					<SimpleData name="DESC">GRID9_5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2651397222222,-0.8558427777777711,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID9.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.396 S</SimpleData>
+					<SimpleData name="Y">117 15 54.739 E</SimpleData>
+					<SimpleData name="DESC">GRID9_2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2652052777778,-0.8556655555555537,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID6.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.445 S</SimpleData>
+					<SimpleData name="Y">117 15 55.139 E</SimpleData>
+					<SimpleData name="DESC">GRID6.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2653163888889,-0.8556791666666719,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID6.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.048 S</SimpleData>
+					<SimpleData name="Y">117 15 54.926 E</SimpleData>
+					<SimpleData name="DESC">GRID6.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2652572222222,-0.855846666666682,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID6.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.756 S</SimpleData>
+					<SimpleData name="Y">117 15 55.341 E</SimpleData>
+					<SimpleData name="DESC">GRID6.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2653725,-0.8557655555555543,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID6.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.514 S</SimpleData>
+					<SimpleData name="Y">117 15 55.798 E</SimpleData>
+					<SimpleData name="DESC">GRID6.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2654994444444,-0.8556983333333257,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID3.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.563 S</SimpleData>
+					<SimpleData name="Y">117 15 56.148 E</SimpleData>
+					<SimpleData name="DESC">GRID3.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2655966666667,-0.8557119444444439,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID3.3</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.787 S</SimpleData>
+					<SimpleData name="Y">117 15 56.469 E</SimpleData>
+					<SimpleData name="DESC">GRID3.3</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2656858333334,-0.8557741666666585,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID3.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 20.599 S</SimpleData>
+					<SimpleData name="Y">117 15 56.949 E</SimpleData>
+					<SimpleData name="DESC">GRID3.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2658191666667,-0.8557219444444319,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID3.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.188 S</SimpleData>
+					<SimpleData name="Y">117 15 56.775 E</SimpleData>
+					<SimpleData name="DESC">GRID3.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2657708333334,-0.8558855555555511,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID3.4</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.298 S</SimpleData>
+					<SimpleData name="Y">117 15 56.198 E</SimpleData>
+					<SimpleData name="DESC">GRID3.4</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2656105555556,-0.8559161111110969,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>GRID6.5</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.217 S</SimpleData>
+					<SimpleData name="Y">117 15 55.610 E</SimpleData>
+					<SimpleData name="DESC">GRID6.5</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2654472222222,-0.8558936111110937,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>SED1.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.668 S</SimpleData>
+					<SimpleData name="Y">117 15 56.350 E</SimpleData>
+					<SimpleData name="DESC">SED1.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2656527777778,-0.8560188888888853,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>SED1.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.923 S</SimpleData>
+					<SimpleData name="Y">117 15 55.968 E</SimpleData>
+					<SimpleData name="DESC">SED1.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2655466666667,-0.8560897222222041,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>SED2.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.995 S</SimpleData>
+					<SimpleData name="Y">117 15 55.478 E</SimpleData>
+					<SimpleData name="DESC">SED2.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2654105555555,-0.8561097222222203,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>SED2.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.59 S</SimpleData>
+					<SimpleData name="Y">117 15 55.07 E</SimpleData>
+					<SimpleData name="DESC">SED2.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2652972222222,-0.8559972222222045,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>SED3.2</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.916 S</SimpleData>
+					<SimpleData name="Y">117 15 54.233 E</SimpleData>
+					<SimpleData name="DESC">SED3.2</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2650647222222,-0.8560877777777787,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>SED3.1</name>
+			<styleUrl>#pointStyleMap0</styleUrl>
+			<Style id="inline">
+				<IconStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</IconStyle>
+				<LineStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</LineStyle>
+				<PolyStyle>
+					<color>ff00ffff</color>
+					<colorMode>normal</colorMode>
+				</PolyStyle>
+			</Style>
+			<ExtendedData>
+				<SchemaData schemaUrl="#S_HYB_FIX_SSS">
+					<SimpleData name="X">0 51 21.411 S</SimpleData>
+					<SimpleData name="Y">117 15 53.546 E</SimpleData>
+					<SimpleData name="DESC">SED3.1</SimpleData>
+				</SchemaData>
+			</ExtendedData>
+			<Point>
+				<coordinates>117.2648738888889,-0.855947500000005,0</coordinates>
+			</Point>
+		</Placemark>
+	</Folder>
+</Document>
+</kml>

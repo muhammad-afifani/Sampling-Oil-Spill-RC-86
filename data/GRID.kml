@@ -1,0 +1,452 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Schema name="polylines" id="polylines">
+	<SimpleField name="fid" type="float"></SimpleField>
+	<SimpleField name="handle" type="int"></SimpleField>
+	<SimpleField name="block" type="int"></SimpleField>
+	<SimpleField name="etype" type="int"></SimpleField>
+	<SimpleField name="space" type="int"></SimpleField>
+	<SimpleField name="layer" type="string"></SimpleField>
+	<SimpleField name="olinetype" type="string"></SimpleField>
+	<SimpleField name="linetype" type="string"></SimpleField>
+	<SimpleField name="color" type="string"></SimpleField>
+	<SimpleField name="ocolor" type="int"></SimpleField>
+	<SimpleField name="color24" type="int"></SimpleField>
+	<SimpleField name="transparency" type="int"></SimpleField>
+	<SimpleField name="lweight" type="int"></SimpleField>
+	<SimpleField name="linewidth" type="float"></SimpleField>
+	<SimpleField name="ltscale" type="float"></SimpleField>
+	<SimpleField name="visible" type="int"></SimpleField>
+	<SimpleField name="width" type="float"></SimpleField>
+	<SimpleField name="thickness" type="float"></SimpleField>
+	<SimpleField name="ext" type="string"></SimpleField>
+</Schema>
+<Folder><name>polylines</name>
+  <Placemark id="polylines.1">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">24</SimpleData>
+		<SimpleData name="handle">18147</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.266216123815,-0.854817895652216,0 117.265993289566,-0.854797752884275,0 117.265969749895,-0.855027967171791,0 117.265826518052,-0.855994488217318,0 117.266069307963,-0.855934711990808,0 117.266216123815,-0.854817895652216,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.2">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">25</SimpleData>
+		<SimpleData name="handle">18148</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265993289566,-0.854797752884275,0 117.265191157332,-0.854738676680755,0 117.265191173339,-0.854971873617489,0 117.265969749895,-0.855027967171791,0 117.265993289566,-0.854797752884275,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.3">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">26</SimpleData>
+		<SimpleData name="handle">18149</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265969749895,-0.855027967171791,0 117.265673322933,-0.855006610727573,0 117.265619468438,-0.855336661791479,0 117.265919972894,-0.85536385978384,0 117.265969749895,-0.855027967171791,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.4">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">27</SimpleData>
+		<SimpleData name="handle">18150</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265919972894,-0.85536385978384,0 117.265619468438,-0.855336661791479,0 117.265569925767,-0.855640287531958,0 117.265874203197,-0.855672711325853,0 117.265919972894,-0.85536385978384,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.5">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">28</SimpleData>
+		<SimpleData name="handle">18151</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265874203197,-0.855672711325853,0 117.265569925767,-0.855640287531958,0 117.265518403872,-0.855956043082244,0 117.265826518052,-0.855994488217318,0 117.265874203197,-0.855672711325853,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.6">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">29</SimpleData>
+		<SimpleData name="handle">18152</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265834419386,-0.856034499910151,0 117.265826518052,-0.855994488217318,0 117.265518403872,-0.855956043082244,0 117.26548990533,-0.856130698400341,0 117.265605038886,-0.856116337200546,0 117.265834419386,-0.856034499910151,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.7">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">30</SimpleData>
+		<SimpleData name="handle">18153</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265518403872,-0.855956043082244,0 117.265361068885,-0.855936879381107,0 117.265346556497,-0.855930583073426,0 117.265197516095,-0.855921183068511,0 117.265140186792,-0.856181522582763,0 117.265229223364,-0.856150156598921,0 117.265359785772,-0.856161889692699,0 117.26548990533,-0.856130698400341,0 117.265518403872,-0.855956043082244,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.8">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">31</SimpleData>
+		<SimpleData name="handle">18154</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265569925767,-0.855640287531958,0 117.265263965873,-0.85560768442892,0 117.265197516095,-0.855921183068511,0 117.265346556497,-0.855930583073426,0 117.265361068885,-0.855936879381107,0 117.265518403872,-0.855956043082244,0 117.265569925767,-0.855640287531958,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.9">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">32</SimpleData>
+		<SimpleData name="handle">18155</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265619468438,-0.855336661791479,0 117.265327022696,-0.855310193151798,0 117.265263965873,-0.85560768442892,0 117.265569925767,-0.855640287531958,0 117.265619468438,-0.855336661791479,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.10">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">33</SimpleData>
+		<SimpleData name="handle">18156</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265673322933,-0.855006610727573,0 117.265395611558,-0.854986602649149,0 117.265327022696,-0.855310193151798,0 117.265619468438,-0.855336661791479,0 117.265673322933,-0.855006610727573,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.11">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">34</SimpleData>
+		<SimpleData name="handle">18157</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265395611558,-0.854986602649149,0 117.265191173339,-0.854971873617489,0 117.26498906593,-0.855161210952732,0 117.264972090515,-0.855278068966431,0 117.265327022696,-0.855310193151798,0 117.265395611558,-0.854986602649149,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.12">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">35</SimpleData>
+		<SimpleData name="handle">18158</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265327022696,-0.855310193151798,0 117.264972090515,-0.855278068966431,0 117.264929387922,-0.85557203175451,0 117.265263965873,-0.85560768442892,0 117.265327022696,-0.855310193151798,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.13">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">36</SimpleData>
+		<SimpleData name="handle">18159</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265263965873,-0.85560768442892,0 117.264929387922,-0.85557203175451,0 117.264884159082,-0.855883385123899,0 117.264955385052,-0.855902360166141,0 117.265038771153,-0.855913119932573,0 117.265197516095,-0.855921183068511,0 117.265263965873,-0.85560768442892,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.14">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">37</SimpleData>
+		<SimpleData name="handle">18160</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.264929387922,-0.85557203175451,0 117.264972090515,-0.855278068966431,0 117.26498906593,-0.855161210952715,0 117.264920227741,-0.855225699623141,0 117.264817347916,-0.855341917118834,0 117.264660303175,-0.855536912288403,0 117.26458016614,-0.855820300712719,0 117.264729411243,-0.855862612012236,0 117.264884159082,-0.855883385123899,0 117.264929387922,-0.85557203175451,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.15">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">38</SimpleData>
+		<SimpleData name="handle">18161</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.264920227741,-0.855225699623141,0 117.264923567133,-0.855222571229464,0 117.264892349187,-0.855182338662376,0 117.264768509977,-0.855315480653381,0 117.264686432019,-0.855431885440482,0 117.264584581708,-0.855599150730778,0 117.264512455939,-0.855808357709966,0 117.264539971088,-0.855861829963234,0 117.264569285683,-0.855870487841775,0 117.26458016614,-0.855820300712719,0 117.264660303175,-0.855536912288403,0 117.264817347916,-0.855341917118834,0 117.264920227741,-0.855225699623141,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.16">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">39</SimpleData>
+		<SimpleData name="handle">18162</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.265197516095,-0.855921183068511,0 117.265038771153,-0.855913119932573,0 117.264955385052,-0.855902360166141,0 117.264884159082,-0.855883385123899,0 117.264729411243,-0.855862612012236,0 117.26458016614,-0.855820300712719,0 117.264569285683,-0.855870487841775,0 117.264701880184,-0.855929211629216,0 117.264824087126,-0.855951995879078,0 117.264912056476,-0.8560303012823,0 117.265140186792,-0.856181522582763,0 117.265197516095,-0.855921183068511,0</coordinates></LineString>
+  </Placemark>
+  <Placemark id="polylines.17">
+	<Style><LineStyle><color>ff0000ff</color></LineStyle><PolyStyle><fill>0</fill></PolyStyle></Style>
+	<ExtendedData><SchemaData schemaUrl="#polylines">
+		<SimpleData name="fid">40</SimpleData>
+		<SimpleData name="handle">18163</SimpleData>
+		<SimpleData name="block">-1</SimpleData>
+		<SimpleData name="etype">18</SimpleData>
+		<SimpleData name="space">0</SimpleData>
+		<SimpleData name="layer">Sample_Grid</SimpleData>
+		<SimpleData name="olinetype">bylayer</SimpleData>
+		<SimpleData name="linetype"></SimpleData>
+		<SimpleData name="color">0,0,0,139</SimpleData>
+		<SimpleData name="ocolor">256</SimpleData>
+		<SimpleData name="color24">-1</SimpleData>
+		<SimpleData name="transparency">0</SimpleData>
+		<SimpleData name="lweight">-1</SimpleData>
+		<SimpleData name="linewidth">0</SimpleData>
+		<SimpleData name="ltscale">1</SimpleData>
+		<SimpleData name="visible">1</SimpleData>
+		<SimpleData name="width">0</SimpleData>
+		<SimpleData name="thickness">0</SimpleData>
+		<SimpleData name="ext">(3:0,0,0.1)</SimpleData>
+	</SchemaData></ExtendedData>
+      <LineString><coordinates>117.266181775811,-0.856631761140765,0 117.266154142247,-0.856485467973946,0 117.264992702018,-0.856707770888425,0 117.265020335545,-0.856854064076851,0 117.266181775811,-0.856631761140765,0</coordinates></LineString>
+  </Placemark>
+</Folder>
+</Document></kml>
