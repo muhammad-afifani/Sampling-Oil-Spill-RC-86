@@ -26,6 +26,8 @@ app/
 
 Kedua berkas ini adalah data mentah asli yang menjadi dasar pembuatan peta dan aplikasi pelaporan.
 
+Ada tiga jenis sampling: tanah (kode `GRID...`), sedimen (kode `SED...`), dan air. Titik air belum ada di data KML awal, jadi ditambahkan manual lewat aplikasi (lihat "Opsi menambah titik sampling baru" di bawah).
+
 ## Tentang aplikasi
 
 Aplikasi ini disajikan langsung dari `index.html` di akar repositori lewat GitHub Pages, tanpa bergantung pada layanan lain. Fiturnya meliputi:
@@ -39,9 +41,9 @@ Aplikasi ini disajikan langsung dari `index.html` di akar repositori lewat GitHu
 - Foto lapangan yang membawa data lokasi GPS pada metadata EXIF-nya (misalnya dari aplikasi kamera GPS) otomatis dibaca saat diunggah, dan lokasinya dipakai sebagai lokasi sampling aktual titik tersebut apabila belum diisi. Data lokasi ini tersimpan bersama fotonya, sehingga tombol Deteksi dari Foto bisa dipakai kapan pun untuk memasukkannya ulang ke lokasi sampling aktual, termasuk setelah lokasi aktual dihapus
 - Foto disimpan di penyimpanan berkas milik browser (IndexedDB), bukan di penyimpanan lokal biasa yang cepat penuh, sehingga menampung jauh lebih banyak foto per titik
 - Lokasi sampling aktual per titik, untuk mencatat posisi sebenarnya saat sampling meleset dari titik rencana, diisi manual atau dengan menandai langsung di peta. Pergeserannya dalam meter dihitung otomatis, dan bila ditampilkan, peta menggambar garis dari titik rencana ke titik aktual
-- Opsi menambah titik sampling baru secara manual, lengkap dengan kode, jenis (air atau sedimen), area grid, dan koordinatnya, untuk titik yang belum tercatat di data KML awal. Titik tambahan ini dapat dihapus kembali dan ikut tersimpan pada ekspor dan impor JSON
+- Opsi menambah titik sampling baru secara manual, lengkap dengan kode, jenis (air, sedimen, atau tanah), area grid, dan koordinatnya, untuk titik yang belum tercatat di data KML awal. Titik tambahan ini dapat dihapus kembali dan ikut tersimpan pada ekspor dan impor JSON
 - Detail tiap area grid menampilkan luas areanya dalam meter persegi dan hektar, dihitung dari poligon aslinya
-- Dashboard ringkasan progres, termasuk perbandingan tahap Before dan After Recovery serta daftar area yang paling memerlukan perhatian
+- Dashboard ringkasan progres, termasuk perbandingan tahap Before dan After Recovery, progres per jenis sampling (air, sedimen, tanah), serta daftar area yang paling memerlukan perhatian
 - Ringkasan area grid ditampilkan di bawah peta agar peta bisa ditampilkan sebesar mungkin
 - Mode gelap dan terang yang dapat diganti dari tombol di pojok kanan atas
 - Ekspor dan impor data dalam format JSON untuk pencadangan dan berbagi data antar perangkat, termasuk titik tambahan dan lokasi sampling aktual

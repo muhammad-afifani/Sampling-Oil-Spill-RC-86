@@ -167,6 +167,19 @@ function gridMembers(g) {
   return g.members.concat(extra);
 }
 
+var SAMPLE_TYPES = {
+  air: { label: "Air", short: "AIR", color: "#2FD9C7" },
+  sedimen: { label: "Sedimen", short: "SED", color: "#B78CE8" },
+  soil: { label: "Tanah", short: "GRID", color: "#F2A93C" }
+};
+
+function pointType(p) {
+  if (p.type) return p.type;
+  if (p.id.indexOf("SED") === 0) return "sedimen";
+  if (p.id.indexOf("AIR") === 0) return "air";
+  return "soil";
+}
+
 function polygonAreaM2(ring) {
   var R = 6378137;
   var lat0 = ring[0][0] * Math.PI / 180;
@@ -1009,6 +1022,20 @@ function render() {
   document.getElementById("afterCount").textContent = afterDone + " dari " + total + " titik";
   document.getElementById("afterBar").style.width = afterPct + "%";
 
+  var typeTotals = { air: 0, sedimen: 0, soil: 0 };
+  var typeDone = { air: 0, sedimen: 0, soil: 0 };
+  pts.forEach(function (p) {
+    var t = pointType(p);
+    typeTotals[t]++;
+    if (repOf(p.id, round).done) typeDone[t]++;
+  });
+  ["air", "sedimen", "soil"].forEach(function (t) {
+    var idPrefix = "type" + t[0].toUpperCase() + t.slice(1);
+    var pct = typeTotals[t] ? Math.round((typeDone[t] / typeTotals[t]) * 100) : 0;
+    document.getElementById(idPrefix + "Count").textContent = typeDone[t] + " dari " + typeTotals[t] + " titik";
+    document.getElementById(idPrefix + "Bar").style.width = pct + "%";
+  });
+
   var gridStatsList = GRIDS.map(function (g) {
     var stats = gridStats(g, round);
     return Object.assign({ id: g.id, label: g.label }, stats);
@@ -1077,7 +1104,8 @@ function renderBottomPanel(gridStatsList) {
       '<div class="field"><label for="newcode">Kode Titik</label><input id="newcode" type="text" placeholder="Contoh: AIR-TAMBAHAN-1" value="' + esc(draft.code) + '" data-field="newcode"/></div>' +
       '<div class="field"><label for="newtype">Jenis</label><select id="newtype" data-field="newtype">' +
       '<option value="air"' + (draft.type === "air" ? " selected" : "") + '>Air</option>' +
-      '<option value="sedimen"' + (draft.type === "sedimen" ? " selected" : "") + '>Sedimen</option></select></div>' +
+      '<option value="sedimen"' + (draft.type === "sedimen" ? " selected" : "") + '>Sedimen</option>' +
+      '<option value="soil"' + (draft.type === "soil" ? " selected" : "") + '>Tanah</option></select></div>' +
       '<div class="field"><label for="newgrid">Area Grid</label><select id="newgrid" data-field="newgrid">' + gridOptions + '</select></div>' +
       '<div class="field"><label>Koordinat</label><div class="tworow">' +
       '<input type="number" step="any" placeholder="Lintang" value="' + (draft.lat != null ? draft.lat : "") + '" data-field="newlat"/>' +
@@ -1107,6 +1135,7 @@ function renderBottomPanel(gridStatsList) {
     var toggleLabel = active.done ? "Tandai belum selesai" : "Tandai selesai";
     var hasActual = active.actualLat != null && active.actualLon != null;
     var hasPhotoGps = active.photos.some(function (ph) { return typeof ph.gpsLat === "number" && typeof ph.gpsLon === "number"; });
+    var ptype = SAMPLE_TYPES[pointType(p)];
     var offsetLabel = "";
     if (hasActual) {
       var offM = distanceMeters(p.lat, p.lon, active.actualLat, active.actualLon);
@@ -1122,7 +1151,7 @@ function renderBottomPanel(gridStatsList) {
       '<button type="button" class="backbtn" data-action="back-grid">' + ICONS.back + ' Kembali ke ' + esc(g ? g.label : "ringkasan") + '</button>' +
       '<div class="detailgrid">' +
       '<div class="detailcard">' +
-      '<div class="pointhead"><div class="pointid">' + esc(p.id) + (p.custom ? ' <span class="roundtag">Titik tambahan</span>' : '') + '</div>' +
+      '<div class="pointhead"><div class="pointid">' + esc(p.id) + ' <span class="typetag" style="border-color:' + ptype.color + ';color:' + ptype.color + '">' + ptype.label + '</span>' + (p.custom ? ' <span class="roundtag">Titik tambahan</span>' : '') + '</div>' +
       '<div class="pointgrid">' + esc(g ? g.label : "Tanpa grid") + '</div>' +
       '<div class="pointcoord">Rencana: lintang ' + p.lat.toFixed(6) + ', bujur ' + p.lon.toFixed(6) + '</div></div>' +
       '<div class="crossrow">' +
