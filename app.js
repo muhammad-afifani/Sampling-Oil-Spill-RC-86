@@ -92,8 +92,10 @@ function updateReport(pointId, round, patch) {
    Map
 --------------------------------------------------------------------- */
 var map, gridLayers = {}, markerLayers = {};
-var ESRI_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-var ESRI_ATTR = "Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community";
+var BASEMAP_URL = "assets/basemap-drone.jpg";
+var BASEMAP_ATTR = "Citra udara drone lapangan";
+// Corners read from the orthomosaic's embedded georeferencing (UTM zone 50S), reprojected to WGS84.
+var IMAGE_BOUNDS = [[-0.8597803, 117.2609098], [-0.8465768, 117.2760070]];
 
 function allBounds() {
   var pts = POINTS.map(function (p) { return [p.lat, p.lon]; });
@@ -101,8 +103,12 @@ function allBounds() {
 }
 
 function initMap() {
-  map = L.map("map", { zoomControl: false, attributionControl: true, minZoom: 15, maxZoom: 21 });
-  L.tileLayer(ESRI_URL, { maxZoom: 21, maxNativeZoom: 17, attribution: ESRI_ATTR }).addTo(map);
+  map = L.map("map", {
+    zoomControl: false, attributionControl: true,
+    minZoom: 15, maxZoom: 20, maxBoundsViscosity: 1
+  });
+  L.imageOverlay(BASEMAP_URL, IMAGE_BOUNDS, { attribution: BASEMAP_ATTR }).addTo(map);
+  map.setMaxBounds(L.latLngBounds(IMAGE_BOUNDS).pad(0.25));
   L.control.scale({ metric: true, imperial: false, position: "bottomleft" }).addTo(map);
   map.fitBounds(allBounds(), { padding: [36, 36] });
 

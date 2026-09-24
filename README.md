@@ -9,6 +9,7 @@ index.html                 Halaman utama aplikasi
 styles.css                 Tampilan aplikasi, termasuk mode gelap dan terang
 app.js                      Data titik dan grid, serta seluruh logika aplikasi
 vendor/leaflet/             Pustaka peta Leaflet, disalin secara lokal
+assets/basemap-drone.jpg    Citra udara drone sebagai latar peta
 
 data/
   GRID.kml                 Data grid area sampling (poligon), 17 area
@@ -29,15 +30,22 @@ Kedua berkas ini adalah data mentah asli yang menjadi dasar pembuatan peta dan a
 
 Aplikasi ini disajikan langsung dari `index.html` di akar repositori lewat GitHub Pages, tanpa bergantung pada layanan lain. Fiturnya meliputi:
 
-- Peta satelit sungguhan (Leaflet dengan citra Esri World Imagery), menampilkan seluruh area grid dan titik sampling berikut nama grid dan kode setiap titik, dengan pewarnaan otomatis sesuai status pengerjaan
+- Peta dengan latar citra udara asli hasil pemotretan drone lapangan, menampilkan seluruh area grid dan titik sampling berikut nama grid dan kode setiap titik, dengan pewarnaan otomatis sesuai status pengerjaan
 - Navigasi peta murni lewat mouse atau layar sentuh, gulir untuk memperbesar dan memperkecil, seret atau cubit untuk menggeser, tanpa tombol arah tambahan
+- Tombol terpisah untuk menampilkan atau menyembunyikan nama grid dan kode titik di peta
 - Formulir laporan per titik: tanggal sampling, catatan kendala, dan lampiran foto kegiatan, terpisah untuk tahap sebelum dan sesudah pemulihan lahan (recovery)
 - Dashboard ringkasan progres, termasuk perbandingan tahap sebelum dan sesudah recovery serta daftar area yang paling memerlukan perhatian
 - Ringkasan area grid ditampilkan di bawah peta agar peta bisa ditampilkan sebesar mungkin
 - Mode gelap dan terang yang dapat diganti dari tombol di pojok kanan atas
 - Ekspor dan impor data dalam format JSON untuk pencadangan dan berbagi data antar perangkat
 
-Folder `app/project/` menyimpan versi sebelumnya dari aplikasi ini, yang dibuat sebagai Claude Artifact bertipe Design. Versi tersebut masih dapat dibuka lewat Claude, tetapi tidak dapat menampilkan citra satelit karena keterbatasan platform tersebut, sehingga petanya masih berupa gambar skematik. Berkas ini disimpan sebagai riwayat, bukan versi yang disarankan untuk dipakai.
+Folder `app/project/` menyimpan versi sebelumnya dari aplikasi ini, yang dibuat sebagai Claude Artifact bertipe Design. Versi tersebut masih dapat dibuka lewat Claude, tetapi tidak dapat menampilkan citra udara karena keterbatasan platform tersebut, sehingga petanya masih berupa gambar skematik. Berkas ini disimpan sebagai riwayat, bukan versi yang disarankan untuk dipakai.
+
+## Tentang citra latar peta
+
+`assets/basemap-drone.jpg` adalah citra udara drone yang diunggah pengelola proyek. Posisinya di peta ditentukan dari data georeferensi yang sudah tertanam di dalam berkas aslinya (koordinat UTM zone 50S pada metadata EXIF/GeoTIFF), diubah ke koordinat lintang dan bujur biasa, bukan diperkirakan secara visual, sehingga sejajar tepat dengan titik dan grid sampling. Berkas yang disimpan di sini sudah diperkecil dari ukuran aslinya (sekitar 19336 x 16799 piksel, 98 MB) menjadi sekitar 4200 piksel pada sisi terpanjang supaya tidak memberatkan saat dimuat lewat GitHub Pages, dengan resolusi akhir sekitar 40 sentimeter per piksel, masih cukup tajam untuk memeriksa tiap titik sampling. Berkas asli beresolusi penuh tidak disimpan di repositori ini.
+
+Jika suatu saat ada foto drone baru untuk menggantikan citra ini, sebaiknya gunakan berkas yang masih membawa metadata georeferensi yang sama (EXIF GeoTIFF, atau disertai berkas dunia seperti `.jgw`/`.tfw`, atau KML ground overlay), supaya posisinya bisa dipasang tepat tanpa harus menebak secara manual.
 
 ## Membuka lewat GitHub Pages
 
