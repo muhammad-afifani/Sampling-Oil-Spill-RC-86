@@ -245,6 +245,31 @@ var state = {
   } catch (e) {}
 })();
 
+function migrateOldPhotos() {
+  var writes = [];
+  var touched = false;
+  Object.keys(state.reports).forEach(function (pid) {
+    var report = state.reports[pid];
+    ["before", "after"].forEach(function (round) {
+      var r = report[round];
+      if (!r || !r.photos || !r.photos.length) return;
+      var hasOld = r.photos.some(function (ph) { return ph.url; });
+      if (!hasOld) return;
+      touched = true;
+      r.photos = r.photos.map(function (ph) {
+        if (!ph.url) return ph;
+        writes.push(base64ToBlob(ph.url).then(function (blob) { return dbPutPhoto(ph.id, blob); }));
+        return { id: ph.id, addedAt: ph.addedAt || Date.now() };
+      });
+    });
+  });
+  if (!touched) return;
+  Promise.all(writes).then(function () {
+    persist();
+    render();
+  }).catch(function () {});
+}
+
 function persist() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ reports: state.reports, gridNotes: state.gridNotes, customPoints: state.customPoints }));
@@ -1332,6 +1357,7 @@ function boot() {
   var actualBtn = document.getElementById("toggleActual");
   if (actualBtn) actualBtn.className = "labeltoggle" + (state.showActual ? " active" : "");
   render();
+  migrateOldPhotos();
 
   document.body.addEventListener("click", onAction);
   document.body.addEventListener("input", onInput);
