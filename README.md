@@ -34,11 +34,14 @@ Aplikasi ini disajikan langsung dari `index.html` di akar repositori lewat GitHu
 - Navigasi peta murni lewat mouse atau layar sentuh, gulir untuk memperbesar dan memperkecil, seret atau cubit untuk menggeser, tanpa tombol arah tambahan, dan tombol layar penuh di pojok kanan atas peta
 - Tombol terpisah untuk menampilkan atau menyembunyikan nama grid, kode titik, dan lokasi sampling aktual di peta
 - Info singkat saat kursor diarahkan ke sebuah titik, menampilkan status dan tanggal sampling tahap sebelum dan sesudah tanpa perlu membuka detailnya
-- Formulir laporan per titik: tanggal sampling, catatan kendala, dan lampiran foto kegiatan, terpisah untuk tahap sebelum dan sesudah pemulihan lahan (recovery)
+- Formulir laporan per titik: tanggal sampling, catatan kendala, dan lampiran foto kegiatan, terpisah untuk tahap Before Recovery dan After Recovery
+- Foto dapat ditambahkan lewat tombol Tambah Foto atau dengan menyeret dan melepaskannya langsung ke area dokumentasi foto
+- Foto lapangan yang membawa data lokasi GPS pada metadata EXIF-nya (misalnya dari aplikasi kamera GPS) otomatis dibaca, dan lokasinya dipakai sebagai lokasi sampling aktual titik tersebut apabila belum diisi
+- Foto disimpan di penyimpanan berkas milik browser (IndexedDB), bukan di penyimpanan lokal biasa yang cepat penuh, sehingga menampung jauh lebih banyak foto per titik
 - Lokasi sampling aktual per titik, untuk mencatat posisi sebenarnya saat sampling meleset dari titik rencana, diisi manual atau dengan menandai langsung di peta. Pergeserannya dalam meter dihitung otomatis, dan bila ditampilkan, peta menggambar garis dari titik rencana ke titik aktual
 - Opsi menambah titik sampling baru secara manual, lengkap dengan kode, jenis (air atau sedimen), area grid, dan koordinatnya, untuk titik yang belum tercatat di data KML awal. Titik tambahan ini dapat dihapus kembali dan ikut tersimpan pada ekspor dan impor JSON
 - Detail tiap area grid menampilkan luas areanya dalam meter persegi dan hektar, dihitung dari poligon aslinya
-- Dashboard ringkasan progres, termasuk perbandingan tahap sebelum dan sesudah recovery serta daftar area yang paling memerlukan perhatian
+- Dashboard ringkasan progres, termasuk perbandingan tahap Before dan After Recovery serta daftar area yang paling memerlukan perhatian
 - Ringkasan area grid ditampilkan di bawah peta agar peta bisa ditampilkan sebesar mungkin
 - Mode gelap dan terang yang dapat diganti dari tombol di pojok kanan atas
 - Ekspor dan impor data dalam format JSON untuk pencadangan dan berbagi data antar perangkat, termasuk titik tambahan dan lokasi sampling aktual

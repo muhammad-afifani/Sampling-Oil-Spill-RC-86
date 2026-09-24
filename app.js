@@ -25,6 +25,129 @@ var COLORS = {
   pending: "#F2A93C"
 };
 
+/* ---------------------------------------------------------------------
+   Photo storage (IndexedDB). Photo bytes live here instead of
+   localStorage, which only holds a few megabytes; IndexedDB gives the
+   app room for far more documentation photos per point.
+--------------------------------------------------------------------- */
+var PHOTO_DB_NAME = "oilspill_photos_db";
+var PHOTO_STORE = "photos";
+var photoDbPromise = null;
+
+function openPhotoDb() {
+  if (photoDbPromise) return photoDbPromise;
+  photoDbPromise = new Promise(function (resolve, reject) {
+    var req = indexedDB.open(PHOTO_DB_NAME, 1);
+    req.onupgradeneeded = function () {
+      if (!req.result.objectStoreNames.contains(PHOTO_STORE)) req.result.createObjectStore(PHOTO_STORE);
+    };
+    req.onsuccess = function () { resolve(req.result); };
+    req.onerror = function () { reject(req.error); };
+  });
+  return photoDbPromise;
+}
+function dbPutPhoto(id, blob) {
+  return openPhotoDb().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(PHOTO_STORE, "readwrite");
+      tx.objectStore(PHOTO_STORE).put(blob, id);
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function () { reject(tx.error); };
+    });
+  });
+}
+function dbGetPhoto(id) {
+  return openPhotoDb().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(PHOTO_STORE, "readonly");
+      var req = tx.objectStore(PHOTO_STORE).get(id);
+      req.onsuccess = function () { resolve(req.result || null); };
+      req.onerror = function () { reject(req.error); };
+    });
+  });
+}
+function dbDeletePhoto(id) {
+  return openPhotoDb().then(function (db) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(PHOTO_STORE, "readwrite");
+      tx.objectStore(PHOTO_STORE).delete(id);
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function () { reject(tx.error); };
+    });
+  });
+}
+
+function blobToBase64(blob) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function () { resolve(reader.result); };
+    reader.onerror = function () { reject(reader.error); };
+    reader.readAsDataURL(blob);
+  });
+}
+function base64ToBlob(dataUrl) {
+  return fetch(dataUrl).then(function (r) { return r.blob(); });
+}
+
+/* ---------------------------------------------------------------------
+   EXIF GPS extraction. Reads latitude and longitude straight from a
+   JPEG's own EXIF tags (as written by field cameras and GPS camera
+   apps), no library required.
+--------------------------------------------------------------------- */
+function extractExifGPS(buffer) {
+  try {
+    var view = new DataView(buffer);
+    if (view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return null;
+    var offset = 2;
+    while (offset < view.byteLength - 2) {
+      var marker = view.getUint16(offset);
+      if (marker === 0xFFE1) {
+        return parseExifForGPS(view, offset + 4);
+      } else if ((marker & 0xFF00) !== 0xFF00) {
+        break;
+      } else {
+        offset += 2 + view.getUint16(offset + 2);
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+function parseExifForGPS(view, start) {
+  if (view.getUint32(start) !== 0x45786966) return null;
+  var tiffOffset = start + 6;
+  var little = view.getUint16(tiffOffset) === 0x4949;
+  function u16(o) { return view.getUint16(o, little); }
+  function u32(o) { return view.getUint32(o, little); }
+  if (u16(tiffOffset + 2) !== 0x002A) return null;
+
+  var ifd0Offset = tiffOffset + u32(tiffOffset + 4);
+  var gpsIfdOffset = null;
+  var entries = u16(ifd0Offset);
+  for (var i = 0; i < entries; i++) {
+    var eo = ifd0Offset + 2 + i * 12;
+    if (u16(eo) === 0x8825) { gpsIfdOffset = tiffOffset + u32(eo + 8); break; }
+  }
+  if (gpsIfdOffset == null) return null;
+
+  function rational(o) { var num = u32(o), den = u32(o + 4); return den ? num / den : 0; }
+  function dms(o) { return rational(o) + rational(o + 8) / 60 + rational(o + 16) / 3600; }
+
+  var lat = null, latRef = null, lon = null, lonRef = null;
+  var gpsEntries = u16(gpsIfdOffset);
+  for (var j = 0; j < gpsEntries; j++) {
+    var geo = gpsIfdOffset + 2 + j * 12;
+    var tag = u16(geo), count = u32(geo + 4), valueOffset = geo + 8;
+    if (tag === 1) latRef = String.fromCharCode(view.getUint8(valueOffset));
+    else if (tag === 3) lonRef = String.fromCharCode(view.getUint8(valueOffset));
+    else if (tag === 2 && count === 3) lat = dms(tiffOffset + u32(valueOffset));
+    else if (tag === 4 && count === 3) lon = dms(tiffOffset + u32(valueOffset));
+  }
+  if (lat == null || lon == null) return null;
+  if (latRef === "S") lat = -lat;
+  if (lonRef === "W") lon = -lon;
+  return { lat: lat, lon: lon };
+}
+
 function defaultRound() {
   return { done: false, date: "", notes: "", issue: false, photos: [], actualLat: null, actualLon: null, savedAt: 0 };
 }
@@ -189,7 +312,7 @@ function pointHoverHtml(id) {
     var date = r.done && r.date ? " pada " + formatDateID(r.date) : "";
     return label + ": " + status + date;
   }
-  return '<span class="ph-id">' + esc(id) + '</span>' + esc(line("Sebelum", rb)) + '<br>' + esc(line("Sesudah", ra));
+  return '<span class="ph-id">' + esc(id) + '</span>' + esc(line("Before", rb)) + '<br>' + esc(line("After", ra));
 }
 
 var gridGradientReady = {};
@@ -419,45 +542,69 @@ function deletePoint(id) {
    Photos
 --------------------------------------------------------------------- */
 var currentPhotos = [];
+var photoUrlCache = {};
+var MAX_PHOTO_DIM = 1600;
+var PHOTO_QUALITY = 0.78;
+var TRANSPARENT_PX = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 function addPhotos(pointId, round, fileList) {
   var files = fileList ? Array.prototype.slice.call(fileList) : [];
-  files.forEach(function (file) {
-    if (!file.type || file.type.indexOf("image/") !== 0) return;
-    var reader = new FileReader();
-    reader.onload = function (ev) {
-      var img = new Image();
-      img.onload = function () {
-        var maxDim = 1000;
-        var w = img.naturalWidth, h = img.naturalHeight;
-        if (w > maxDim || h > maxDim) {
-          var s = maxDim / Math.max(w, h);
-          w = Math.round(w * s); h = Math.round(h * s);
-        }
-        var canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
-        var ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-        var dataUrl;
-        try { dataUrl = canvas.toDataURL("image/jpeg", 0.62); } catch (e) { dataUrl = ev.target.result; }
-        appendPhoto(pointId, round, dataUrl);
-      };
-      img.onerror = function () {};
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
+  files.forEach(function (file) { processPhotoFile(pointId, round, file); });
 }
 
-function appendPhoto(pointId, round, url) {
-  var existing = state.reports[pointId] ? Object.assign({}, state.reports[pointId]) : {};
-  var current = existing[round] ? Object.assign({}, existing[round]) : defaultRound();
-  var photos = current.photos ? current.photos.slice() : [];
-  photos.push({ id: "ph" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), url: url });
-  existing[round] = Object.assign({}, current, { photos: photos, savedAt: Date.now() });
-  state.reports[pointId] = existing;
-  persist();
-  render();
+function processPhotoFile(pointId, round, file) {
+  if (!file.type || file.type.indexOf("image/") !== 0) return;
+  var objectUrl = URL.createObjectURL(file);
+  var img = new Image();
+  img.onload = function () {
+    var w = img.naturalWidth, h = img.naturalHeight;
+    if (w > MAX_PHOTO_DIM || h > MAX_PHOTO_DIM) {
+      var s = MAX_PHOTO_DIM / Math.max(w, h);
+      w = Math.round(w * s); h = Math.round(h * s);
+    }
+    var canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(objectUrl);
+    canvas.toBlob(function (blob) {
+      if (blob) appendPhoto(pointId, round, blob);
+    }, "image/jpeg", PHOTO_QUALITY);
+  };
+  img.onerror = function () { URL.revokeObjectURL(objectUrl); };
+  img.src = objectUrl;
+
+  if (file.arrayBuffer) {
+    file.arrayBuffer().then(function (buf) {
+      var gps = extractExifGPS(buf);
+      if (gps) handlePhotoGPS(pointId, round, gps);
+    }).catch(function () {});
+  }
+}
+
+function handlePhotoGPS(pointId, round, gps) {
+  var r = repOf(pointId, round);
+  if (r.actualLat == null || r.actualLon == null) {
+    updateReport(pointId, round, { actualLat: gps.lat, actualLon: gps.lon });
+    showToast("success", "Lokasi GPS pada foto ditemukan dan dipakai sebagai lokasi sampling aktual.");
+  } else {
+    showToast("info", "Foto memiliki data lokasi GPS. Lokasi aktual titik ini sudah terisi, periksa manual bila perlu diperbarui.");
+  }
+}
+
+function appendPhoto(pointId, round, blob) {
+  var photoId = "ph" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  dbPutPhoto(photoId, blob).then(function () {
+    var existing = state.reports[pointId] ? Object.assign({}, state.reports[pointId]) : {};
+    var current = existing[round] ? Object.assign({}, existing[round]) : defaultRound();
+    var photos = current.photos ? current.photos.slice() : [];
+    photos.push({ id: photoId, addedAt: Date.now() });
+    existing[round] = Object.assign({}, current, { photos: photos, savedAt: Date.now() });
+    state.reports[pointId] = existing;
+    persist();
+    if (state.selectedId === pointId) render();
+  }).catch(function () {
+    showToast("warn", "Gagal menyimpan foto ke penyimpanan perangkat.");
+  });
 }
 
 function removePhoto(pointId, round, photoId) {
@@ -467,7 +614,82 @@ function removePhoto(pointId, round, photoId) {
   existing[round] = Object.assign({}, current, { photos: photos, savedAt: Date.now() });
   state.reports[pointId] = existing;
   persist();
+  dbDeletePhoto(photoId);
+  if (photoUrlCache[photoId]) { URL.revokeObjectURL(photoUrlCache[photoId]); delete photoUrlCache[photoId]; }
   render();
+}
+
+function ensurePhotoUrl(id) {
+  if (photoUrlCache[id]) return Promise.resolve(photoUrlCache[id]);
+  return dbGetPhoto(id).then(function (blob) {
+    if (!blob) return null;
+    var url = URL.createObjectURL(blob);
+    photoUrlCache[id] = url;
+    return url;
+  });
+}
+
+function hydrateGalleryImages() {
+  var imgs = document.querySelectorAll("#bottomPanel img[data-photo-id]");
+  imgs.forEach(function (img) {
+    var id = img.getAttribute("data-photo-id");
+    if (photoUrlCache[id]) { img.src = photoUrlCache[id]; return; }
+    ensurePhotoUrl(id).then(function (url) { if (url) img.src = url; });
+  });
+}
+
+function openLightbox(photoId) {
+  state.lightbox = photoId;
+  renderLightbox();
+}
+
+function exportJson() {
+  showToast("info", "Menyiapkan berkas ekspor, mohon tunggu sebentar.");
+  var reportsCopy = {};
+  var photoReads = [];
+
+  Object.keys(state.reports).forEach(function (pid) {
+    var r = state.reports[pid];
+    var copy = {};
+    ["before", "after"].forEach(function (round) {
+      if (!r[round]) return;
+      var roundCopy = Object.assign({}, r[round]);
+      roundCopy.photos = (roundCopy.photos || []).map(function (ph) {
+        var entry = { id: ph.id, addedAt: ph.addedAt };
+        photoReads.push(dbGetPhoto(ph.id).then(function (blob) {
+          if (!blob) return;
+          return blobToBase64(blob).then(function (b64) { entry.data = b64; });
+        }));
+        return entry;
+      });
+      copy[round] = roundCopy;
+    });
+    reportsCopy[pid] = copy;
+  });
+
+  Promise.all(photoReads).then(function () {
+    var payload = {
+      schema: "oilspill-sampling-v2",
+      exportedAt: new Date().toISOString(),
+      totalPoints: allPoints().length,
+      totalGrids: GRIDS.length,
+      reports: reportsCopy,
+      gridNotes: state.gridNotes,
+      customPoints: state.customPoints
+    };
+    var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "sampling-oilspill-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    showToast("success", "Data berhasil diekspor ke berkas JSON.");
+  }).catch(function () {
+    showToast("warn", "Gagal menyiapkan berkas ekspor.");
+  });
 }
 
 /* ---------------------------------------------------------------------
@@ -494,6 +716,7 @@ function mergeImport(data) {
   var incomingNotes = (data && data.gridNotes) || {};
   var incomingCustom = (data && data.customPoints) || [];
   var updated = 0, addedPoints = 0;
+  var photoWrites = [];
 
   var existingIds = {};
   allPoints().forEach(function (p) { existingIds[p.id] = true; });
@@ -514,18 +737,35 @@ function mergeImport(data) {
       if (!incR) return;
       var curR = cur[round];
       if (!curR || (incR.savedAt || 0) > (curR.savedAt || 0)) {
-        cur[round] = incR;
+        var photos = (incR.photos || []).map(function (ph) {
+          if (ph.data) {
+            photoWrites.push(base64ToBlob(ph.data).then(function (blob) { return dbPutPhoto(ph.id, blob); }));
+          }
+          return { id: ph.id, addedAt: ph.addedAt || Date.now() };
+        });
+        var roundCopy = Object.assign({}, incR, { photos: photos });
+        delete roundCopy.data;
+        cur[round] = roundCopy;
         updated++;
       }
     });
     state.reports[pid] = cur;
   });
   state.gridNotes = Object.assign({}, state.gridNotes, incomingNotes);
+
+  Promise.all(photoWrites).then(function () { finishImport(updated, addedPoints); }).catch(function () {
+    finishImport(updated, addedPoints, true);
+  });
+}
+
+function finishImport(updated, addedPoints, photoFailure) {
   persist();
   render();
   var msg = "Impor selesai. " + updated + " entri diperbarui";
   if (addedPoints) msg += ", " + addedPoints + " titik tambahan baru ditambahkan";
-  showToast("success", msg + " dari berkas.");
+  msg += " dari berkas.";
+  if (photoFailure) msg += " Sebagian foto gagal disimpan.";
+  showToast(photoFailure ? "warn" : "success", msg);
 }
 
 /* ---------------------------------------------------------------------
@@ -691,7 +931,7 @@ function render() {
 
   document.getElementById("roundBeforeBtn").className = "roundbtn before" + (round === "before" ? " active" : "");
   document.getElementById("roundAfterBtn").className = "roundbtn after" + (round === "after" ? " active" : "");
-  document.getElementById("roundTag").textContent = round === "before" ? "Sebelum Recovery" : "Sesudah Recovery";
+  document.getElementById("roundTag").textContent = round === "before" ? "Before Recovery" : "After Recovery";
 
   document.getElementById("kpiDone").textContent = doneAll;
   document.getElementById("kpiDoneSub").textContent = pctDone + "% dari seluruh titik";
@@ -757,14 +997,6 @@ function render() {
     document.getElementById("filter-" + f).className = "chip" + (state.statusFilter === f ? " active" : "");
   });
 
-  var exportPayload = {
-    schema: "oilspill-sampling-v2", exportedAt: new Date().toISOString(),
-    totalPoints: total, totalGrids: GRIDS.length, reports: state.reports, gridNotes: state.gridNotes,
-    customPoints: state.customPoints
-  };
-  document.getElementById("exportLink").href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
-  document.getElementById("exportLink").download = "sampling-oilspill-" + new Date().toISOString().slice(0, 10) + ".json";
-
   renderBottomPanel(gridStatsList);
   updateMapStyles();
 }
@@ -824,7 +1056,7 @@ function renderBottomPanel(gridStatsList) {
     }
 
     var gallery = active.photos.length ? active.photos.map(function (ph, idx) {
-      return '<div class="thumb"><img src="' + ph.url + '" data-action="open-lightbox" data-idx="' + idx + '" alt="Foto kegiatan sampling"/>' +
+      return '<div class="thumb"><img src="' + TRANSPARENT_PX + '" data-photo-id="' + esc(ph.id) + '" data-action="open-lightbox" data-idx="' + idx + '" alt="Foto kegiatan sampling"/>' +
         '<button type="button" class="thumb-remove" data-action="remove-photo" data-photo-id="' + esc(ph.id) + '" aria-label="Hapus foto">' + ICONS.trash + '</button></div>';
     }).join("") : "";
 
@@ -836,12 +1068,12 @@ function renderBottomPanel(gridStatsList) {
       '<div class="pointgrid">' + esc(g ? g.label : "Tanpa grid") + '</div>' +
       '<div class="pointcoord">Rencana: lintang ' + p.lat.toFixed(6) + ', bujur ' + p.lon.toFixed(6) + '</div></div>' +
       '<div class="crossrow">' +
-      '<div class="crosschip"><div class="cc-label">Sebelum</div><div class="cc-val" style="color:' + (rBefore.done ? "#3BD488" : "#9FB0B9") + '">' + (rBefore.done ? "Selesai" : "Belum") + '</div></div>' +
-      '<div class="crosschip"><div class="cc-label">Sesudah</div><div class="cc-val" style="color:' + (rAfter.done ? "#3BD488" : "#9FB0B9") + '">' + (rAfter.done ? "Selesai" : "Belum") + '</div></div>' +
+      '<div class="crosschip"><div class="cc-label">Before</div><div class="cc-val" style="color:' + (rBefore.done ? "var(--green-text)" : "var(--text-1)") + '">' + (rBefore.done ? "Selesai" : "Belum") + '</div></div>' +
+      '<div class="crosschip"><div class="cc-label">After</div><div class="cc-val" style="color:' + (rAfter.done ? "var(--green-text)" : "var(--text-1)") + '">' + (rAfter.done ? "Selesai" : "Belum") + '</div></div>' +
       '</div>' +
       '<div class="tabs">' +
-      '<button type="button" class="tabbtn' + (round === "before" ? " active" : "") + '" data-action="set-round" data-round="before">Sebelum Recovery</button>' +
-      '<button type="button" class="tabbtn' + (round === "after" ? " active" : "") + '" data-action="set-round" data-round="after">Sesudah Recovery</button>' +
+      '<button type="button" class="tabbtn' + (round === "before" ? " active" : "") + '" data-action="set-round" data-round="before">Before Recovery</button>' +
+      '<button type="button" class="tabbtn' + (round === "after" ? " active" : "") + '" data-action="set-round" data-round="after">After Recovery</button>' +
       '</div>' +
       '<div class="statusrow"><span class="' + badgeClass + '">' + badgeLabel + '</span>' +
       '<button type="button" class="' + doneBtnClass + '" data-action="toggle-done">' + ICONS.check + ' ' + toggleLabel + '</button></div>' +
@@ -864,13 +1096,14 @@ function renderBottomPanel(gridStatsList) {
       '</div>' +
       (p.custom ? '<button type="button" class="dangerbtn" data-action="delete-point">' + ICONS.trash + ' Hapus Titik Ini</button>' : '') +
       '</div>' +
-      '<div class="detailcard">' +
-      '<div class="photohead"><div><h3>Dokumentasi Foto</h3><p>' + active.photos.length + ' foto tersimpan</p></div>' +
+      '<div class="detailcard photodrop" id="photoDropZone">' +
+      '<div class="photohead"><div><h3>Dokumentasi Foto</h3><p>' + active.photos.length + ' foto tersimpan, seret dan lepas foto ke sini atau</p></div>' +
       '<label class="uploadlabel" for="photoInput">' + ICONS.camera + ' Tambah Foto</label></div>' +
       '<input class="hiddenfile" id="photoInput" type="file" accept="image/*" multiple data-field="photos"/>' +
-      (active.photos.length ? '<div class="gallery">' + gallery + '</div>' : '<div class="emptyphoto">Belum ada foto kegiatan sampling di titik ini.</div>') +
+      (active.photos.length ? '<div class="gallery">' + gallery + '</div>' : '<div class="emptyphoto">Belum ada foto kegiatan sampling di titik ini. Seret dan lepas foto ke area ini, atau gunakan tombol Tambah Foto.</div>') +
       '</div>' +
       '</div>';
+    hydrateGalleryImages();
     return;
   }
 
@@ -929,9 +1162,18 @@ function renderToast() {
 function renderLightbox() {
   var root = document.getElementById("lightboxRoot");
   if (!state.lightbox) { root.innerHTML = ""; return; }
+  var photoId = state.lightbox;
+  var cached = photoUrlCache[photoId];
   root.innerHTML = '<div class="lightbox-backdrop" data-action="close-lightbox">' +
-    '<img src="' + state.lightbox + '" class="lightbox-img" alt="Pratinjau foto kegiatan sampling"/>' +
+    '<img src="' + (cached || TRANSPARENT_PX) + '" data-photo-id="' + esc(photoId) + '" class="lightbox-img" alt="Pratinjau foto kegiatan sampling"/>' +
     '<button type="button" class="lightbox-close" data-action="close-lightbox" aria-label="Tutup pratinjau">' + ICONS.close + '</button></div>';
+  if (!cached) {
+    ensurePhotoUrl(photoId).then(function (url) {
+      if (!url || state.lightbox !== photoId) return;
+      var img = document.querySelector('.lightbox-img[data-photo-id="' + photoId + '"]');
+      if (img) img.src = url;
+    });
+  }
 }
 
 /* ---------------------------------------------------------------------
@@ -965,7 +1207,9 @@ function onAction(e) {
   } else if (action === "open-lightbox") {
     var idx = parseInt(el.getAttribute("data-idx"), 10);
     var photo = currentPhotos[idx];
-    if (photo) { state.lightbox = photo.url; renderLightbox(); }
+    if (photo) openLightbox(photo.id);
+  } else if (action === "export-json") {
+    exportJson();
   } else if (action === "pick-actual") {
     startPickActual(state.selectedId, state.round);
   } else if (action === "clear-actual") {
@@ -1050,6 +1294,27 @@ function onBlur(e) {
   if (field === "notes" || field === "gridnote") persist();
 }
 
+function onDragOver(e) {
+  var zone = e.target.closest && e.target.closest(".photodrop");
+  if (!zone) return;
+  e.preventDefault();
+  zone.classList.add("dragover");
+}
+function onDragLeave(e) {
+  var zone = e.target.closest && e.target.closest(".photodrop");
+  if (!zone) return;
+  zone.classList.remove("dragover");
+}
+function onDrop(e) {
+  var zone = e.target.closest && e.target.closest(".photodrop");
+  if (!zone) return;
+  e.preventDefault();
+  zone.classList.remove("dragover");
+  if (!state.selectedId) return;
+  var files = e.dataTransfer && e.dataTransfer.files;
+  if (files && files.length) addPhotos(state.selectedId, state.round, files);
+}
+
 /* ---------------------------------------------------------------------
    Boot
 --------------------------------------------------------------------- */
@@ -1072,6 +1337,9 @@ function boot() {
   document.body.addEventListener("input", onInput);
   document.body.addEventListener("change", onChange);
   document.body.addEventListener("focusout", onBlur, true);
+  document.body.addEventListener("dragover", onDragOver);
+  document.body.addEventListener("dragleave", onDragLeave);
+  document.body.addEventListener("drop", onDrop);
   document.addEventListener("fullscreenchange", onFullscreenChange);
 }
 

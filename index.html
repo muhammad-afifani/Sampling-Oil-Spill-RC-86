@@ -20,8 +20,8 @@
       </div>
       <div class="metachip" id="metaChip">73 titik pada 17 area grid</div>
       <div class="roundswitch">
-        <button type="button" id="roundBeforeBtn" class="roundbtn before active" data-action="set-round" data-round="before">Sebelum Recovery</button>
-        <button type="button" id="roundAfterBtn" class="roundbtn after" data-action="set-round" data-round="after">Sesudah Recovery</button>
+        <button type="button" id="roundBeforeBtn" class="roundbtn before active" data-action="set-round" data-round="before">Before Recovery</button>
+        <button type="button" id="roundAfterBtn" class="roundbtn after" data-action="set-round" data-round="after">After Recovery</button>
       </div>
       <button type="button" class="themebtn" data-action="toggle-theme" aria-label="Ganti mode gelap dan terang">
         <span id="themeIcon"></span>
@@ -64,15 +64,15 @@
 
       <div class="secondrow">
         <div class="card">
-          <h2>Perbandingan Sebelum dan Sesudah</h2>
+          <h2>Perbandingan Before dan After Recovery</h2>
           <p class="cardsub">Progres sampling pada dua tahap pemantauan untuk keseluruhan area.</p>
           <div class="comparerows">
             <div class="comparerow-item">
-              <div class="cr-top"><span class="cr-name">Sebelum Recovery</span><span class="cr-count" id="beforeCount">0 dari 73 titik</span></div>
+              <div class="cr-top"><span class="cr-name">Before Recovery</span><span class="cr-count" id="beforeCount">0 dari 73 titik</span></div>
               <div class="bar"><div class="bar-fill" id="beforeBar" style="width:0%;background:#2FD9C7"></div></div>
             </div>
             <div class="comparerow-item">
-              <div class="cr-top"><span class="cr-name">Sesudah Recovery</span><span class="cr-count" id="afterCount">0 dari 73 titik</span></div>
+              <div class="cr-top"><span class="cr-name">After Recovery</span><span class="cr-count" id="afterCount">0 dari 73 titik</span></div>
               <div class="bar"><div class="bar-fill" id="afterBar" style="width:0%;background:#3BD488"></div></div>
             </div>
           </div>
@@ -108,9 +108,9 @@
         <span id="importIcon"></span> Impor JSON
       </label>
       <input class="hiddenfile" id="importInput" type="file" accept="application/json"/>
-      <a class="btn btn-primary" id="exportLink" href="#" download title="Mengunduh seluruh data laporan sebagai satu berkas JSON, termasuk foto">
+      <button type="button" class="btn btn-primary" id="exportBtn" data-action="export-json" title="Mengunduh seluruh data laporan sebagai satu berkas JSON, termasuk foto">
         <span id="exportIcon"></span> Ekspor JSON
-      </a>
+      </button>
     </div>
   </section>
 
@@ -120,7 +120,7 @@
         <div class="mapsection-head-top">
           <h2>Peta Grid Sampling</h2>
           <div class="headtop-right">
-            <span class="roundtag" id="roundTag">Sebelum Recovery</span>
+            <span class="roundtag" id="roundTag">Before Recovery</span>
             <button type="button" class="iconbtn" data-action="toggle-fullscreen" id="fullscreenBtn" aria-label="Tampilkan peta layar penuh" title="Tampilkan peta layar penuh">
               <span id="fullscreenIcon"></span>
             </button>
