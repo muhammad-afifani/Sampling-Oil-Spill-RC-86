@@ -579,31 +579,34 @@ function addPhotos(pointId, round, fileList) {
 
 function processPhotoFile(pointId, round, file) {
   if (!file.type || file.type.indexOf("image/") !== 0) return;
-  var objectUrl = URL.createObjectURL(file);
-  var img = new Image();
-  img.onload = function () {
-    var w = img.naturalWidth, h = img.naturalHeight;
-    if (w > MAX_PHOTO_DIM || h > MAX_PHOTO_DIM) {
-      var s = MAX_PHOTO_DIM / Math.max(w, h);
-      w = Math.round(w * s); h = Math.round(h * s);
-    }
-    var canvas = document.createElement("canvas");
-    canvas.width = w; canvas.height = h;
-    canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-    URL.revokeObjectURL(objectUrl);
-    canvas.toBlob(function (blob) {
-      if (blob) appendPhoto(pointId, round, blob);
-    }, "image/jpeg", PHOTO_QUALITY);
-  };
-  img.onerror = function () { URL.revokeObjectURL(objectUrl); };
-  img.src = objectUrl;
 
-  if (file.arrayBuffer) {
-    file.arrayBuffer().then(function (buf) {
-      var gps = extractExifGPS(buf);
-      if (gps) handlePhotoGPS(pointId, round, gps);
-    }).catch(function () {});
-  }
+  var blobPromise = new Promise(function (resolve) {
+    var objectUrl = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      if (w > MAX_PHOTO_DIM || h > MAX_PHOTO_DIM) {
+        var s = MAX_PHOTO_DIM / Math.max(w, h);
+        w = Math.round(w * s); h = Math.round(h * s);
+      }
+      var canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(objectUrl);
+      canvas.toBlob(function (blob) { resolve(blob); }, "image/jpeg", PHOTO_QUALITY);
+    };
+    img.onerror = function () { URL.revokeObjectURL(objectUrl); resolve(null); };
+    img.src = objectUrl;
+  });
+
+  var gpsPromise = file.arrayBuffer
+    ? file.arrayBuffer().then(function (buf) { return extractExifGPS(buf); }).catch(function () { return null; })
+    : Promise.resolve(null);
+
+  Promise.all([blobPromise, gpsPromise]).then(function (results) {
+    var blob = results[0], gps = results[1];
+    if (blob) appendPhoto(pointId, round, blob, gps);
+  });
 }
 
 function handlePhotoGPS(pointId, round, gps) {
@@ -612,24 +615,45 @@ function handlePhotoGPS(pointId, round, gps) {
     updateReport(pointId, round, { actualLat: gps.lat, actualLon: gps.lon });
     showToast("success", "Lokasi GPS pada foto ditemukan dan dipakai sebagai lokasi sampling aktual.");
   } else {
-    showToast("info", "Foto memiliki data lokasi GPS. Lokasi aktual titik ini sudah terisi, periksa manual bila perlu diperbarui.");
+    showToast("info", "Foto memiliki data lokasi GPS. Lokasi aktual titik ini sudah terisi, gunakan tombol Deteksi dari Foto bila ingin memperbaruinya.");
   }
 }
 
-function appendPhoto(pointId, round, blob) {
+function appendPhoto(pointId, round, blob, gps) {
   var photoId = "ph" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   dbPutPhoto(photoId, blob).then(function () {
     var existing = state.reports[pointId] ? Object.assign({}, state.reports[pointId]) : {};
     var current = existing[round] ? Object.assign({}, existing[round]) : defaultRound();
     var photos = current.photos ? current.photos.slice() : [];
-    photos.push({ id: photoId, addedAt: Date.now() });
+    var photoRecord = { id: photoId, addedAt: Date.now() };
+    if (gps) { photoRecord.gpsLat = gps.lat; photoRecord.gpsLon = gps.lon; }
+    photos.push(photoRecord);
     existing[round] = Object.assign({}, current, { photos: photos, savedAt: Date.now() });
     state.reports[pointId] = existing;
     persist();
     if (state.selectedId === pointId) render();
+    if (gps) handlePhotoGPS(pointId, round, gps);
   }).catch(function () {
     showToast("warn", "Gagal menyimpan foto ke penyimpanan perangkat.");
   });
+}
+
+function detectLocationFromPhotos(pointId, round) {
+  var r = repOf(pointId, round);
+  var photos = r.photos || [];
+  var withGps = null;
+  for (var i = photos.length - 1; i >= 0; i--) {
+    if (typeof photos[i].gpsLat === "number" && typeof photos[i].gpsLon === "number") {
+      withGps = photos[i];
+      break;
+    }
+  }
+  if (!withGps) {
+    showToast("warn", "Tidak ada foto dengan data lokasi GPS pada titik ini.");
+    return;
+  }
+  updateReport(pointId, round, { actualLat: withGps.gpsLat, actualLon: withGps.gpsLon });
+  showToast("success", "Lokasi aktual dipakai ulang dari data GPS foto.");
 }
 
 function removePhoto(pointId, round, photoId) {
@@ -681,6 +705,9 @@ function exportJson() {
       var roundCopy = Object.assign({}, r[round]);
       roundCopy.photos = (roundCopy.photos || []).map(function (ph) {
         var entry = { id: ph.id, addedAt: ph.addedAt };
+        if (typeof ph.gpsLat === "number" && typeof ph.gpsLon === "number") {
+          entry.gpsLat = ph.gpsLat; entry.gpsLon = ph.gpsLon;
+        }
         photoReads.push(dbGetPhoto(ph.id).then(function (blob) {
           if (!blob) return;
           return blobToBase64(blob).then(function (b64) { entry.data = b64; });
@@ -766,7 +793,11 @@ function mergeImport(data) {
           if (ph.data) {
             photoWrites.push(base64ToBlob(ph.data).then(function (blob) { return dbPutPhoto(ph.id, blob); }));
           }
-          return { id: ph.id, addedAt: ph.addedAt || Date.now() };
+          var entry = { id: ph.id, addedAt: ph.addedAt || Date.now() };
+          if (typeof ph.gpsLat === "number" && typeof ph.gpsLon === "number") {
+            entry.gpsLat = ph.gpsLat; entry.gpsLon = ph.gpsLon;
+          }
+          return entry;
         });
         var roundCopy = Object.assign({}, incR, { photos: photos });
         delete roundCopy.data;
@@ -919,7 +950,8 @@ var ICONS = {
   expand: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   collapse: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   plus: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
-  pin: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3" stroke="currentColor" stroke-width="1.7"/></svg>'
+  pin: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3" stroke="currentColor" stroke-width="1.7"/></svg>',
+  locate: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.9"/><path d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>'
 };
 
 function esc(s) {
@@ -1074,6 +1106,7 @@ function renderBottomPanel(gridStatsList) {
     var doneBtnClass = "donebtn" + (active.done ? " ispressed" : "");
     var toggleLabel = active.done ? "Tandai belum selesai" : "Tandai selesai";
     var hasActual = active.actualLat != null && active.actualLon != null;
+    var hasPhotoGps = active.photos.some(function (ph) { return typeof ph.gpsLat === "number" && typeof ph.gpsLon === "number"; });
     var offsetLabel = "";
     if (hasActual) {
       var offM = distanceMeters(p.lat, p.lon, active.actualLat, active.actualLon);
@@ -1115,6 +1148,7 @@ function renderBottomPanel(gridStatsList) {
       '</div>' +
       '<div class="actualactions">' +
       '<button type="button" class="btn" data-action="pick-actual">' + ICONS.pin + ' Tandai di Peta</button>' +
+      (hasPhotoGps ? '<button type="button" class="btn" data-action="detect-location">' + ICONS.locate + ' Deteksi dari Foto</button>' : '') +
       (hasActual ? '<button type="button" class="btn" data-action="clear-actual">Hapus Lokasi Aktual</button>' : '') +
       '</div>' +
       (hasActual ? '<div class="actualoffset">Bergeser sekitar <b>' + offsetLabel + '</b> dari titik rencana. Aktifkan sakelar Lokasi Aktual di atas peta untuk melihatnya.</div>' : '') +
@@ -1237,6 +1271,8 @@ function onAction(e) {
     exportJson();
   } else if (action === "pick-actual") {
     startPickActual(state.selectedId, state.round);
+  } else if (action === "detect-location") {
+    detectLocationFromPhotos(state.selectedId, state.round);
   } else if (action === "clear-actual") {
     clearActual(state.selectedId, state.round);
   } else if (action === "cancel-pick") {
