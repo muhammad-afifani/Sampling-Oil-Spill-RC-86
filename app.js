@@ -238,6 +238,7 @@ var state = {
   showGridLabels: localStorage.getItem(LABELS_KEY + "_grid") !== "off",
   showPointLabels: localStorage.getItem(LABELS_KEY + "_point") !== "off",
   showActual: localStorage.getItem(LABELS_KEY + "_actual") === "on",
+  showGridFill: localStorage.getItem(LABELS_KEY + "_fill") !== "off",
   pickMode: null,
   addingPoint: false,
   newPointDraft: { code: "", type: "air", gridId: "", lat: null, lon: null },
@@ -347,37 +348,106 @@ function pointHoverHtml(id) {
   var rb = repOf(id, "before"), ra = repOf(id, "after");
   function line(label, r) {
     var status = r.issue ? "Bermasalah" : (r.done ? "Selesai" : "Belum disampling");
+    var statusClass = r.issue ? "ph-status-issue" : (r.done ? "ph-status-done" : "ph-status-pending");
+    var mark = r.done && !r.issue ? "✓ " : "";
     var date = r.done && r.date ? " pada " + formatDateID(r.date) : "";
-    return label + ": " + status + date;
+    return esc(label) + ": <span class=\"" + statusClass + "\">" + mark + esc(status) + "</span>" + esc(date);
   }
-  return '<span class="ph-id">' + esc(id) + '</span>' + esc(line("Before", rb)) + '<br>' + esc(line("After", ra));
+  return '<span class="ph-id">' + esc(id) + '</span>' + line("Before", rb) + '<br>' + line("After", ra);
 }
 
-var gridGradientReady = {};
-function ensureGridGradient(id) {
-  if (gridGradientReady[id]) return;
+/* Partial-progress grid fill: instead of an arbitrary left/right split,
+   each member point "claims" the region of the grid closest to its own
+   real location (a small nearest-point/Voronoi raster), so the done
+   (green) portion of the fill actually sits where the done points are. */
+function hexToRgb(hex) {
+  var h = hex.replace("#", "");
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  var num = parseInt(h, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+var GRID_PATTERN_SIZE = 72;
+var gridPatternReady = {};
+var gridPatternCache = {};
+
+function ensureGridPattern(id) {
+  if (gridPatternReady[id]) return;
   var svg = map.getPane("overlayPane") && map.getPane("overlayPane").querySelector("svg");
   if (!svg) return;
   var defs = svg.querySelector("defs");
   if (!defs) { defs = document.createElementNS("http://www.w3.org/2000/svg", "defs"); svg.insertBefore(defs, svg.firstChild); }
-  var grad = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
-  grad.setAttribute("id", "grid-grad-" + id);
-  grad.innerHTML =
-    '<stop offset="0%" stop-color="' + COLORS.done + '"/>' +
-    '<stop class="gg-mid1" offset="50%" stop-color="' + COLORS.done + '"/>' +
-    '<stop class="gg-mid2" offset="50%" stop-color="' + COLORS.pending + '"/>' +
-    '<stop offset="100%" stop-color="' + COLORS.pending + '"/>';
-  defs.appendChild(grad);
-  gridGradientReady[id] = true;
+  var pattern = document.createElementNS("http://www.w3.org/2000/svg", "pattern");
+  pattern.setAttribute("id", "grid-pattern-" + id);
+  pattern.setAttribute("patternUnits", "objectBoundingBox");
+  pattern.setAttribute("patternContentUnits", "objectBoundingBox");
+  pattern.setAttribute("width", "1");
+  pattern.setAttribute("height", "1");
+  var image = document.createElementNS("http://www.w3.org/2000/svg", "image");
+  image.setAttribute("x", "0"); image.setAttribute("y", "0");
+  image.setAttribute("width", "1"); image.setAttribute("height", "1");
+  image.setAttribute("preserveAspectRatio", "none");
+  pattern.appendChild(image);
+  defs.appendChild(pattern);
+  gridPatternReady[id] = true;
 }
-function setGridGradientPct(id, pct) {
+
+function gridPatternUrl(g, round) {
+  var members = gridMembers(g).map(getPoint).filter(Boolean);
+  if (!members.length) return null;
+  var reps = members.map(function (p) { return { p: p, r: repOf(p.id, round) }; });
+  var key = g.id + "|" + round + "|" + reps.map(function (x) { return x.r.issue ? "X" : (x.r.done ? "1" : "0"); }).join("");
+  if (gridPatternCache[key]) return gridPatternCache[key];
+
+  var lats = g.ring.map(function (c) { return c[0]; });
+  var lons = g.ring.map(function (c) { return c[1]; });
+  var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+  var minLon = Math.min.apply(null, lons), maxLon = Math.max.apply(null, lons);
+  var latSpan = (maxLat - minLat) || 0.0001, lonSpan = (maxLon - minLon) || 0.0001;
+
+  var pts = reps.map(function (x) {
+    var color = x.r.issue ? COLORS.issue : (x.r.done ? COLORS.done : COLORS.pending);
+    return {
+      x: (x.p.lon - minLon) / lonSpan * GRID_PATTERN_SIZE,
+      y: (1 - (x.p.lat - minLat) / latSpan) * GRID_PATTERN_SIZE,
+      rgb: hexToRgb(color)
+    };
+  });
+
+  var canvas = document.createElement("canvas");
+  canvas.width = GRID_PATTERN_SIZE; canvas.height = GRID_PATTERN_SIZE;
+  var ctx = canvas.getContext("2d");
+  var img = ctx.createImageData(GRID_PATTERN_SIZE, GRID_PATTERN_SIZE);
+  for (var yy = 0; yy < GRID_PATTERN_SIZE; yy++) {
+    for (var xx = 0; xx < GRID_PATTERN_SIZE; xx++) {
+      var bestRgb = pts[0].rgb, bestDist = Infinity;
+      for (var i = 0; i < pts.length; i++) {
+        var dx = xx - pts[i].x, dy = yy - pts[i].y;
+        var d = dx * dx + dy * dy;
+        if (d < bestDist) { bestDist = d; bestRgb = pts[i].rgb; }
+      }
+      var idx = (yy * GRID_PATTERN_SIZE + xx) * 4;
+      img.data[idx] = bestRgb[0]; img.data[idx + 1] = bestRgb[1]; img.data[idx + 2] = bestRgb[2]; img.data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  var url = canvas.toDataURL("image/png");
+  gridPatternCache[key] = url;
+  return url;
+}
+
+function applyGridPattern(g, round) {
+  ensureGridPattern(g.id);
   var svg = map.getPane("overlayPane") && map.getPane("overlayPane").querySelector("svg");
-  if (!svg) return;
-  var grad = svg.querySelector("#grid-grad-" + id);
-  if (!grad) return;
-  var p = (pct * 100).toFixed(1) + "%";
-  grad.querySelector(".gg-mid1").setAttribute("offset", p);
-  grad.querySelector(".gg-mid2").setAttribute("offset", p);
+  if (!svg) return null;
+  var pattern = svg.querySelector("#grid-pattern-" + g.id);
+  if (!pattern) return null;
+  var url = gridPatternUrl(g, round);
+  if (!url) return null;
+  var image = pattern.querySelector("image");
+  image.setAttribute("href", url);
+  image.setAttributeNS("http://www.w3.org/1999/xlink", "href", url);
+  return "url(#grid-pattern-" + g.id + ")";
 }
 
 function initMap() {
@@ -396,7 +466,7 @@ function initMap() {
     poly.on("click", function () { selectGrid(g.id); });
     poly.bindTooltip(g.label, { permanent: true, direction: "center", className: "grid-label-tip", interactive: false });
     gridLayers[g.id] = poly;
-    ensureGridGradient(g.id);
+    ensureGridPattern(g.id);
   });
 
   allPoints().forEach(addPointMarker);
@@ -437,16 +507,17 @@ function updateMapStyles() {
     var stats = gridStats(g, round);
     var tier = gridTierColor(stats.pct);
     var isSel = state.selectedGridId === g.id && !state.selectedId;
+    var showFill = state.showGridFill || isSel;
     var layer = gridLayers[g.id];
     layer.setStyle({
       color: tier.stroke,
       fillColor: tier.fill,
       weight: isSel ? 3 : 1.4,
-      fillOpacity: isSel ? 0.4 : 0.26
+      fillOpacity: showFill ? (isSel ? 0.42 : 0.26) : 0
     });
-    if (stats.pct > 0 && stats.pct < 1 && layer._path) {
-      setGridGradientPct(g.id, stats.pct);
-      layer._path.setAttribute("fill", "url(#grid-grad-" + g.id + ")");
+    if (showFill && stats.pct > 0 && stats.pct < 1 && layer._path) {
+      var patternRef = applyGridPattern(g, round);
+      if (patternRef) layer._path.setAttribute("fill", patternRef);
     }
     var pctLabel = Math.round(stats.pct * 100) + "%";
     layer.setTooltipContent(esc(g.label) + '<span class="gl-pct">' + pctLabel + '</span>');
@@ -897,6 +968,8 @@ function applyLabelVisibility() {
   if (gridBtn) gridBtn.className = "labeltoggle" + (state.showGridLabels ? " active" : "");
   var pointBtn = document.getElementById("togglePointLabels");
   if (pointBtn) pointBtn.className = "labeltoggle" + (state.showPointLabels ? " active" : "");
+  var fillBtn = document.getElementById("toggleGridFill");
+  if (fillBtn) fillBtn.className = "labeltoggle" + (state.showGridFill ? " active" : "");
 }
 function toggleGridLabels() {
   state.showGridLabels = !state.showGridLabels;
@@ -914,6 +987,13 @@ function toggleActual() {
   var btn = document.getElementById("toggleActual");
   if (btn) btn.className = "labeltoggle" + (state.showActual ? " active" : "");
   updateActualLayer();
+}
+function toggleGridFill() {
+  state.showGridFill = !state.showGridFill;
+  localStorage.setItem(LABELS_KEY + "_fill", state.showGridFill ? "on" : "off");
+  var btn = document.getElementById("toggleGridFill");
+  if (btn) btn.className = "labeltoggle" + (state.showGridFill ? " active" : "");
+  updateMapStyles();
 }
 
 /* ---------------------------------------------------------------------
@@ -1280,6 +1360,7 @@ function onAction(e) {
   else if (action === "toggle-theme") toggleTheme();
   else if (action === "toggle-grid-labels") toggleGridLabels();
   else if (action === "toggle-point-labels") togglePointLabels();
+  else if (action === "toggle-grid-fill") toggleGridFill();
   else if (action === "toggle-actual") toggleActual();
   else if (action === "toggle-fullscreen") toggleFullscreen();
   else if (action === "close-toast") { state.toast = null; renderToast(); }

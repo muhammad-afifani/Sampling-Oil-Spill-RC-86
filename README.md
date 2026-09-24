@@ -32,10 +32,11 @@ Ada tiga jenis sampling: tanah (kode `GRID...`), sedimen (kode `SED...`), dan ai
 
 Aplikasi ini disajikan langsung dari `index.html` di akar repositori lewat GitHub Pages, tanpa bergantung pada layanan lain. Fiturnya meliputi:
 
-- Peta dengan latar citra udara asli hasil pemotretan drone lapangan, menampilkan seluruh area grid dan titik sampling berikut nama grid dan kode setiap titik, dengan pewarnaan otomatis sesuai status pengerjaan. Grid yang baru sebagian selesai ditampilkan dengan isian gradasi warna sesuai persentase titik yang sudah disampling, bukan warna penuh
+- Peta dengan latar citra udara asli hasil pemotretan drone lapangan, menampilkan seluruh area grid dan titik sampling berikut nama grid dan kode setiap titik, dengan pewarnaan otomatis sesuai status pengerjaan. Grid yang baru sebagian selesai ditampilkan dengan isian warna yang mengikuti posisi asli tiap titik di dalam area tersebut (bagian dekat titik yang sudah disampling berwarna hijau, bagian dekat titik yang belum tetap berwarna kuning), bukan gradasi acak yang tidak berkaitan dengan lokasi sebenarnya
 - Navigasi peta murni lewat mouse atau layar sentuh, gulir untuk memperbesar dan memperkecil, seret atau cubit untuk menggeser, tanpa tombol arah tambahan, dan tombol layar penuh di pojok kanan atas peta
-- Tombol terpisah untuk menampilkan atau menyembunyikan nama grid, kode titik, dan lokasi sampling aktual di peta
-- Info singkat saat kursor diarahkan ke sebuah titik, menampilkan status dan tanggal sampling tahap sebelum dan sesudah tanpa perlu membuka detailnya
+- Tombol terpisah untuk menampilkan atau menyembunyikan isian warna area grid (bila dimatikan, area grid hanya tampak sebagai garis batas, dan baru terisi warna saat area itu diklik), nama grid, kode titik, dan lokasi sampling aktual di peta
+- Warna label nama grid dan label kode titik dibedakan supaya keduanya mudah dibedakan sekilas di peta
+- Info singkat saat kursor diarahkan ke sebuah titik, menampilkan status dan tanggal sampling tahap sebelum dan sesudah tanpa perlu membuka detailnya, dengan tanda centang dan warna hijau pada status yang sudah selesai disampling
 - Formulir laporan per titik: tanggal sampling, catatan kendala, dan lampiran foto kegiatan, terpisah untuk tahap Before Recovery dan After Recovery
 - Foto dapat ditambahkan lewat tombol Tambah Foto atau dengan menyeret dan melepaskannya langsung ke area dokumentasi foto
 - Foto lapangan yang membawa data lokasi GPS pada metadata EXIF-nya (misalnya dari aplikasi kamera GPS) otomatis dibaca saat diunggah, dan lokasinya dipakai sebagai lokasi sampling aktual titik tersebut apabila belum diisi. Data lokasi ini tersimpan bersama fotonya, sehingga tombol Deteksi dari Foto bisa dipakai kapan pun untuk memasukkannya ulang ke lokasi sampling aktual, termasuk setelah lokasi aktual dihapus
