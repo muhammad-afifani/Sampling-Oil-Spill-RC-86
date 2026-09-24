@@ -18,7 +18,7 @@
         <h1>Peta Sampling Oil Spill</h1>
         <p>Pemetaan titik sampling air dan sedimen pada masa sebelum dan sesudah pemulihan lahan</p>
       </div>
-      <div class="metachip">73 titik pada 17 area grid</div>
+      <div class="metachip" id="metaChip">73 titik pada 17 area grid</div>
       <div class="roundswitch">
         <button type="button" id="roundBeforeBtn" class="roundbtn before active" data-action="set-round" data-round="before">Sebelum Recovery</button>
         <button type="button" id="roundAfterBtn" class="roundbtn after" data-action="set-round" data-round="after">Sesudah Recovery</button>
@@ -34,8 +34,8 @@
       <div class="dash-grid">
         <div class="kpi">
           <div class="kpi-label">Total Titik Sampling</div>
-          <div class="kpi-value">73</div>
-          <div class="kpi-sub">17 area grid</div>
+          <div class="kpi-value" id="kpiTotal">73</div>
+          <div class="kpi-sub" id="kpiTotalSub">17 area grid</div>
         </div>
         <div class="kpi">
           <div class="kpi-label">Selesai Disampling</div>
@@ -119,17 +119,26 @@
       <div class="mapsection-head">
         <div class="mapsection-head-top">
           <h2>Peta Grid Sampling</h2>
-          <span class="roundtag" id="roundTag">Sebelum Recovery</span>
+          <div class="headtop-right">
+            <span class="roundtag" id="roundTag">Sebelum Recovery</span>
+            <button type="button" class="iconbtn" data-action="toggle-fullscreen" id="fullscreenBtn" aria-label="Tampilkan peta layar penuh" title="Tampilkan peta layar penuh">
+              <span id="fullscreenIcon"></span>
+            </button>
+          </div>
         </div>
         <div class="mapsection-head-bottom">
           <span class="maphint">Gulir untuk memperbesar, seret untuk menggeser, cubit layar untuk perangkat sentuh</span>
           <div class="labeltoggles">
             <button type="button" id="toggleGridLabels" class="labeltoggle active" data-action="toggle-grid-labels">Nama Grid</button>
             <button type="button" id="togglePointLabels" class="labeltoggle active" data-action="toggle-point-labels">Nama Titik</button>
+            <button type="button" id="toggleActual" class="labeltoggle" data-action="toggle-actual">Lokasi Aktual</button>
           </div>
         </div>
       </div>
-      <div id="map"></div>
+      <div class="mapstage">
+        <div id="map"></div>
+        <div class="pickbanner" id="pickBanner" style="display:none"></div>
+      </div>
       <div class="legend">
         <div class="legend-item"><span class="legend-swatch" style="background:rgba(242,169,60,0.35);border:1px solid #F2A93C"></span>Grid belum mulai disampling</div>
         <div class="legend-item"><span class="legend-swatch" style="background:rgba(47,217,199,0.35);border:1px solid #2FD9C7"></span>Grid sedang berjalan</div>
@@ -137,6 +146,7 @@
         <div class="legend-item"><span class="legend-ring"></span>Titik belum disampling</div>
         <div class="legend-item"><span class="legend-dot" style="background:#3BD488"></span>Titik sudah disampling</div>
         <div class="legend-item"><span class="legend-dot" style="background:#F2635C"></span>Titik dengan kendala</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#fff;border:2px solid #B78CE8"></span>Lokasi sampling aktual</div>
       </div>
     </section>
 

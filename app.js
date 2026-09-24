@@ -26,7 +26,65 @@ var COLORS = {
 };
 
 function defaultRound() {
-  return { done: false, date: "", notes: "", issue: false, photos: [], savedAt: 0 };
+  return { done: false, date: "", notes: "", issue: false, photos: [], actualLat: null, actualLon: null, savedAt: 0 };
+}
+
+/* ---------------------------------------------------------------------
+   Points and grids: merges the fixed KML data with custom points added
+   manually, and helpers used across the app.
+--------------------------------------------------------------------- */
+function allPoints() { return POINTS.concat(state.customPoints); }
+function getPoint(id) {
+  if (POINT_BY_ID[id]) return POINT_BY_ID[id];
+  for (var i = 0; i < state.customPoints.length; i++) { if (state.customPoints[i].id === id) return state.customPoints[i]; }
+  return null;
+}
+function gridMembers(g) {
+  var extra = state.customPoints.filter(function (p) { return p.gridId === g.id; }).map(function (p) { return p.id; });
+  return g.members.concat(extra);
+}
+
+function polygonAreaM2(ring) {
+  var R = 6378137;
+  var lat0 = ring[0][0] * Math.PI / 180;
+  var cosLat0 = Math.cos(lat0);
+  var pts = ring.map(function (c) {
+    var lat = c[0] * Math.PI / 180, lon = c[1] * Math.PI / 180;
+    return [R * lon * cosLat0, R * lat];
+  });
+  var area = 0;
+  for (var i = 0; i < pts.length - 1; i++) { area += pts[i][0] * pts[i + 1][1] - pts[i + 1][0] * pts[i][1]; }
+  return Math.abs(area / 2);
+}
+var GRID_AREA = {};
+GRIDS.forEach(function (g) { GRID_AREA[g.id] = polygonAreaM2(g.ring); });
+
+function formatArea(m2) {
+  var m2Label = Math.round(m2).toLocaleString("id-ID") + " m²";
+  if (m2 >= 1000) {
+    var ha = (m2 / 10000).toLocaleString("id-ID", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return m2Label + " (" + ha + " ha)";
+  }
+  return m2Label;
+}
+
+function distanceMeters(lat1, lon1, lat2, lon2) {
+  var R = 6378137;
+  var toRad = Math.PI / 180;
+  var dLat = (lat2 - lat1) * toRad, dLon = (lon2 - lon1) * toRad;
+  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * toRad) * Math.cos(lat2 * toRad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+var MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+function formatDateID(str) {
+  if (!str) return "";
+  var parts = str.split("-");
+  if (parts.length !== 3) return str;
+  var y = parts[0], m = parseInt(parts[1], 10) - 1, d = parseInt(parts[2], 10);
+  if (!MONTHS_ID[m]) return str;
+  return d + " " + MONTHS_ID[m] + " " + y;
 }
 
 /* ---------------------------------------------------------------------
@@ -43,8 +101,13 @@ var state = {
   theme: localStorage.getItem(THEME_KEY) || "dark",
   showGridLabels: localStorage.getItem(LABELS_KEY + "_grid") !== "off",
   showPointLabels: localStorage.getItem(LABELS_KEY + "_point") !== "off",
+  showActual: localStorage.getItem(LABELS_KEY + "_actual") === "on",
+  pickMode: null,
+  addingPoint: false,
+  newPointDraft: { code: "", type: "air", gridId: "", lat: null, lon: null },
   reports: {},
-  gridNotes: {}
+  gridNotes: {},
+  customPoints: []
 };
 
 (function loadState() {
@@ -54,13 +117,14 @@ var state = {
       var parsed = JSON.parse(raw);
       state.reports = parsed.reports || {};
       state.gridNotes = parsed.gridNotes || {};
+      state.customPoints = parsed.customPoints || [];
     }
   } catch (e) {}
 })();
 
 function persist() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ reports: state.reports, gridNotes: state.gridNotes }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ reports: state.reports, gridNotes: state.gridNotes, customPoints: state.customPoints }));
   } catch (e) {
     showToast("warn", "Penyimpanan lokal penuh. Segera ekspor data sebagai cadangan.");
   }
@@ -74,7 +138,9 @@ function repOf(id, round) {
     date: (d && d.date) || "",
     notes: (d && d.notes) || "",
     issue: !!(d && d.issue),
-    photos: (d && d.photos) || []
+    photos: (d && d.photos) || [],
+    actualLat: (d && typeof d.actualLat === "number") ? d.actualLat : null,
+    actualLon: (d && typeof d.actualLon === "number") ? d.actualLon : null
   };
 }
 
@@ -91,15 +157,66 @@ function updateReport(pointId, round, patch) {
 /* ---------------------------------------------------------------------
    Map
 --------------------------------------------------------------------- */
-var map, gridLayers = {}, markerLayers = {};
+var map, gridLayers = {}, markerLayers = {}, actualLayer;
 var BASEMAP_URL = "assets/basemap-drone.jpg";
 var BASEMAP_ATTR = "Citra udara drone lapangan";
 // Corners read from the orthomosaic's embedded georeferencing (UTM zone 50S), reprojected to WGS84.
 var IMAGE_BOUNDS = [[-0.8597803, 117.2609098], [-0.8465768, 117.2760070]];
+var ACTUAL_COLOR = "#B78CE8";
 
 function allBounds() {
-  var pts = POINTS.map(function (p) { return [p.lat, p.lon]; });
+  var pts = allPoints().map(function (p) { return [p.lat, p.lon]; });
   return L.latLngBounds(pts);
+}
+
+function addPointMarker(p) {
+  var marker = L.circleMarker([p.lat, p.lon], { radius: 5.5, weight: 1.8 }).addTo(map);
+  marker.on("click", function () { selectPoint(p.id); });
+  marker.bindTooltip(p.id, { permanent: true, direction: "top", offset: [0, -6], className: "point-label-tip", interactive: false });
+  marker.bindPopup("", { closeButton: false, autoPan: false, className: "point-hover-popup", offset: [0, -6] });
+  marker.on("mouseover", function () {
+    marker.setPopupContent(pointHoverHtml(p.id));
+    marker.openPopup();
+  });
+  marker.on("mouseout", function () { marker.closePopup(); });
+  markerLayers[p.id] = marker;
+}
+
+function pointHoverHtml(id) {
+  var rb = repOf(id, "before"), ra = repOf(id, "after");
+  function line(label, r) {
+    var status = r.issue ? "Bermasalah" : (r.done ? "Selesai" : "Belum disampling");
+    var date = r.done && r.date ? " pada " + formatDateID(r.date) : "";
+    return label + ": " + status + date;
+  }
+  return '<span class="ph-id">' + esc(id) + '</span>' + esc(line("Sebelum", rb)) + '<br>' + esc(line("Sesudah", ra));
+}
+
+var gridGradientReady = {};
+function ensureGridGradient(id) {
+  if (gridGradientReady[id]) return;
+  var svg = map.getPane("overlayPane") && map.getPane("overlayPane").querySelector("svg");
+  if (!svg) return;
+  var defs = svg.querySelector("defs");
+  if (!defs) { defs = document.createElementNS("http://www.w3.org/2000/svg", "defs"); svg.insertBefore(defs, svg.firstChild); }
+  var grad = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+  grad.setAttribute("id", "grid-grad-" + id);
+  grad.innerHTML =
+    '<stop offset="0%" stop-color="' + COLORS.done + '"/>' +
+    '<stop class="gg-mid1" offset="50%" stop-color="' + COLORS.done + '"/>' +
+    '<stop class="gg-mid2" offset="50%" stop-color="' + COLORS.pending + '"/>' +
+    '<stop offset="100%" stop-color="' + COLORS.pending + '"/>';
+  defs.appendChild(grad);
+  gridGradientReady[id] = true;
+}
+function setGridGradientPct(id, pct) {
+  var svg = map.getPane("overlayPane") && map.getPane("overlayPane").querySelector("svg");
+  if (!svg) return;
+  var grad = svg.querySelector("#grid-grad-" + id);
+  if (!grad) return;
+  var p = (pct * 100).toFixed(1) + "%";
+  grad.querySelector(".gg-mid1").setAttribute("offset", p);
+  grad.querySelector(".gg-mid2").setAttribute("offset", p);
 }
 
 function initMap() {
@@ -111,30 +228,30 @@ function initMap() {
   map.setMaxBounds(L.latLngBounds(IMAGE_BOUNDS).pad(0.25));
   L.control.scale({ metric: true, imperial: false, position: "bottomleft" }).addTo(map);
   map.fitBounds(allBounds(), { padding: [36, 36] });
+  map.on("click", onMapClick);
 
   GRIDS.forEach(function (g) {
     var poly = L.polygon(g.ring, { weight: 1.4, fillOpacity: 0.28 }).addTo(map);
     poly.on("click", function () { selectGrid(g.id); });
     poly.bindTooltip(g.label, { permanent: true, direction: "center", className: "grid-label-tip", interactive: false });
     gridLayers[g.id] = poly;
+    ensureGridGradient(g.id);
   });
 
-  POINTS.forEach(function (p) {
-    var marker = L.circleMarker([p.lat, p.lon], { radius: 5.5, weight: 1.8 }).addTo(map);
-    marker.on("click", function () { selectPoint(p.id); });
-    marker.bindTooltip(p.id, { permanent: true, direction: "top", offset: [0, -6], className: "point-label-tip", interactive: false });
-    markerLayers[p.id] = marker;
-  });
+  allPoints().forEach(addPointMarker);
+
+  actualLayer = L.layerGroup().addTo(map);
 }
 
 function gridStats(g, round) {
+  var members = gridMembers(g);
   var done = 0, issue = 0;
-  g.members.forEach(function (id) {
+  members.forEach(function (id) {
     var r = repOf(id, round);
     if (r.done) done++;
     if (r.issue) issue++;
   });
-  var total = g.members.length;
+  var total = members.length;
   return { done: done, issue: issue, total: total, pct: total ? done / total : 0 };
 }
 
@@ -159,15 +276,22 @@ function updateMapStyles() {
     var stats = gridStats(g, round);
     var tier = gridTierColor(stats.pct);
     var isSel = state.selectedGridId === g.id && !state.selectedId;
-    gridLayers[g.id].setStyle({
+    var layer = gridLayers[g.id];
+    layer.setStyle({
       color: tier.stroke,
       fillColor: tier.fill,
       weight: isSel ? 3 : 1.4,
       fillOpacity: isSel ? 0.4 : 0.26
     });
+    if (stats.pct > 0 && stats.pct < 1 && layer._path) {
+      setGridGradientPct(g.id, stats.pct);
+      layer._path.setAttribute("fill", "url(#grid-grad-" + g.id + ")");
+    }
+    var pctLabel = Math.round(stats.pct * 100) + "%";
+    layer.setTooltipContent(esc(g.label) + '<span class="gl-pct">' + pctLabel + '</span>');
   });
 
-  POINTS.forEach(function (p) {
+  allPoints().forEach(function (p) {
     var r = repOf(p.id, round);
     var isSel = state.selectedId === p.id;
     var fill, stroke;
@@ -175,7 +299,9 @@ function updateMapStyles() {
     else if (r.done) { fill = COLORS.done; stroke = COLORS.doneStroke; }
     else { fill = "#16212B"; stroke = COLORS.pending; }
     var match = matchesFilter(r) && (!q || p.id.toLowerCase().indexOf(q) !== -1);
-    markerLayers[p.id].setStyle({
+    var layer = markerLayers[p.id];
+    if (!layer) return;
+    layer.setStyle({
       radius: isSel ? 9 : 5.5,
       weight: isSel ? 3 : 1.8,
       color: stroke,
@@ -184,10 +310,45 @@ function updateMapStyles() {
       opacity: match ? 1 : 0.25
     });
   });
+
+  updateActualLayer();
+}
+
+function updateActualLayer() {
+  if (!actualLayer) return;
+  actualLayer.clearLayers();
+  if (!state.showActual) return;
+  var round = state.round;
+  allPoints().forEach(function (p) {
+    var r = repOf(p.id, round);
+    if (r.actualLat == null || r.actualLon == null) return;
+    var line = L.polyline([[p.lat, p.lon], [r.actualLat, r.actualLon]], { color: ACTUAL_COLOR, weight: 1.6, dashArray: "4,4", opacity: 0.85 });
+    var actualMarker = L.circleMarker([r.actualLat, r.actualLon], { radius: 5, weight: 2, color: ACTUAL_COLOR, fillColor: "#ffffff", fillOpacity: 1 });
+    actualMarker.on("click", function () { selectPoint(p.id); });
+    actualMarker.bindTooltip(p.id + " (aktual)", { className: "point-label-tip", direction: "bottom", offset: [0, 6] });
+    line.addTo(actualLayer);
+    actualMarker.addTo(actualLayer);
+  });
+}
+
+function onMapClick(e) {
+  if (!state.pickMode) return;
+  var lat = e.latlng.lat, lon = e.latlng.lng;
+  if (state.pickMode.type === "actual") {
+    updateReport(state.pickMode.pointId, state.pickMode.round, { actualLat: lat, actualLon: lon });
+    state.pickMode = null;
+    renderPickBanner();
+    showToast("success", "Lokasi aktual berhasil ditandai di peta.");
+  } else if (state.pickMode.type === "newpoint") {
+    state.newPointDraft.lat = lat;
+    state.newPointDraft.lon = lon;
+    state.pickMode = null;
+    render();
+  }
 }
 
 function focusPoint(id) {
-  var p = POINT_BY_ID[id];
+  var p = getPoint(id);
   if (!p || !map) return;
   var targetZoom = Math.max(map.getZoom(), 19);
   map.flyTo([p.lat, p.lon], targetZoom, { duration: 0.6 });
@@ -203,7 +364,7 @@ function focusGrid(id) {
    Selection and navigation
 --------------------------------------------------------------------- */
 function selectPoint(id) {
-  var p = POINT_BY_ID[id];
+  var p = getPoint(id);
   if (!p) return;
   state.selectedId = id;
   state.selectedGridId = p.gridId;
@@ -222,6 +383,37 @@ function selectGrid(id) {
 
 function backToGrid() { state.selectedId = null; render(); }
 function backToOverview() { state.selectedId = null; state.selectedGridId = null; render(); map.flyToBounds(allBounds(), { padding: [36, 36], duration: 0.6 }); }
+
+/* ---------------------------------------------------------------------
+   Custom points (added manually, not part of the original KML data)
+--------------------------------------------------------------------- */
+function saveNewPoint() {
+  var draft = state.newPointDraft;
+  var code = (draft.code || "").trim();
+  if (!code) { showToast("warn", "Isi kode titik terlebih dahulu."); return; }
+  if (getPoint(code)) { showToast("warn", "Kode titik sudah dipakai. Gunakan kode lain."); return; }
+  if (draft.lat == null || draft.lon == null) { showToast("warn", "Tentukan lokasi titik terlebih dahulu, ketik koordinat atau tandai di peta."); return; }
+
+  var point = { id: code, gridId: draft.gridId || null, type: draft.type || "air", lat: draft.lat, lon: draft.lon, custom: true, createdAt: Date.now() };
+  state.customPoints.push(point);
+  persist();
+  if (map) addPointMarker(point);
+  state.addingPoint = false;
+  showToast("success", "Titik " + code + " berhasil ditambahkan.");
+  selectPoint(code);
+}
+
+function deletePoint(id) {
+  var p = getPoint(id);
+  if (!p || !p.custom) return;
+  if (!window.confirm("Hapus titik " + id + " beserta seluruh catatan sampling di dalamnya? Tindakan ini tidak dapat dibatalkan.")) return;
+  state.customPoints = state.customPoints.filter(function (cp) { return cp.id !== id; });
+  delete state.reports[id];
+  if (markerLayers[id]) { map.removeLayer(markerLayers[id]); delete markerLayers[id]; }
+  persist();
+  backToOverview();
+  showToast("success", "Titik " + id + " telah dihapus.");
+}
 
 /* ---------------------------------------------------------------------
    Photos
@@ -281,28 +473,6 @@ function removePhoto(pointId, round, photoId) {
 /* ---------------------------------------------------------------------
    Import and export
 --------------------------------------------------------------------- */
-function exportJson() {
-  var payload = {
-    schema: "oilspill-sampling-v2",
-    exportedAt: new Date().toISOString(),
-    totalPoints: POINTS.length,
-    totalGrids: GRIDS.length,
-    reports: state.reports,
-    gridNotes: state.gridNotes
-  };
-  var json = JSON.stringify(payload, null, 2);
-  var blob = new Blob([json], { type: "application/json" });
-  var url = URL.createObjectURL(blob);
-  var a = document.createElement("a");
-  a.href = url;
-  a.download = "sampling-oilspill-" + new Date().toISOString().slice(0, 10) + ".json";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-  showToast("success", "Data berhasil diekspor ke berkas JSON.");
-}
-
 function handleImportInput(e) {
   var file = e.target.files && e.target.files[0];
   e.target.value = "";
@@ -322,7 +492,20 @@ function handleImportInput(e) {
 function mergeImport(data) {
   var incoming = (data && data.reports) || {};
   var incomingNotes = (data && data.gridNotes) || {};
-  var updated = 0;
+  var incomingCustom = (data && data.customPoints) || [];
+  var updated = 0, addedPoints = 0;
+
+  var existingIds = {};
+  allPoints().forEach(function (p) { existingIds[p.id] = true; });
+  incomingCustom.forEach(function (p) {
+    if (!p || !p.id || existingIds[p.id]) return;
+    if (typeof p.lat !== "number" || typeof p.lon !== "number") return;
+    state.customPoints.push({ id: p.id, gridId: p.gridId || null, type: p.type || "air", lat: p.lat, lon: p.lon, custom: true, createdAt: p.createdAt || Date.now() });
+    existingIds[p.id] = true;
+    addedPoints++;
+    if (map) addPointMarker(state.customPoints[state.customPoints.length - 1]);
+  });
+
   Object.keys(incoming).forEach(function (pid) {
     var inc = incoming[pid] || {};
     var cur = state.reports[pid] ? Object.assign({}, state.reports[pid]) : {};
@@ -340,7 +523,9 @@ function mergeImport(data) {
   state.gridNotes = Object.assign({}, state.gridNotes, incomingNotes);
   persist();
   render();
-  showToast("success", "Impor selesai. " + updated + " entri diperbarui dari berkas.");
+  var msg = "Impor selesai. " + updated + " entri diperbarui";
+  if (addedPoints) msg += ", " + addedPoints + " titik tambahan baru ditambahkan";
+  showToast("success", msg + " dari berkas.");
 }
 
 /* ---------------------------------------------------------------------
@@ -369,6 +554,28 @@ function toggleTheme() {
 }
 
 /* ---------------------------------------------------------------------
+   Fullscreen
+--------------------------------------------------------------------- */
+function toggleFullscreen() {
+  var el = document.querySelector(".mapsection");
+  if (!document.fullscreenElement) {
+    if (el.requestFullscreen) el.requestFullscreen().catch(function () {});
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen();
+  }
+}
+function onFullscreenChange() {
+  var active = !!document.fullscreenElement;
+  var section = document.querySelector(".mapsection");
+  if (section) section.classList.toggle("is-fullscreen", active);
+  var icon = document.getElementById("fullscreenIcon");
+  if (icon) icon.innerHTML = active ? ICONS.collapse : ICONS.expand;
+  var btn = document.getElementById("fullscreenBtn");
+  if (btn) btn.setAttribute("aria-label", active ? "Keluar dari layar penuh" : "Tampilkan peta layar penuh");
+  setTimeout(function () { if (map) map.invalidateSize(); }, 60);
+}
+
+/* ---------------------------------------------------------------------
    Map label visibility
 --------------------------------------------------------------------- */
 function applyLabelVisibility() {
@@ -392,6 +599,42 @@ function togglePointLabels() {
   localStorage.setItem(LABELS_KEY + "_point", state.showPointLabels ? "on" : "off");
   applyLabelVisibility();
 }
+function toggleActual() {
+  state.showActual = !state.showActual;
+  localStorage.setItem(LABELS_KEY + "_actual", state.showActual ? "on" : "off");
+  var btn = document.getElementById("toggleActual");
+  if (btn) btn.className = "labeltoggle" + (state.showActual ? " active" : "");
+  updateActualLayer();
+}
+
+/* ---------------------------------------------------------------------
+   Location picking (actual sampling spot, new point placement)
+--------------------------------------------------------------------- */
+function startPickActual(pointId, round) {
+  state.pickMode = { type: "actual", pointId: pointId, round: round };
+  renderPickBanner();
+}
+function startPickNewPoint() {
+  state.pickMode = { type: "newpoint" };
+  renderPickBanner();
+}
+function cancelPick() {
+  state.pickMode = null;
+  renderPickBanner();
+}
+function clearActual(pointId, round) {
+  updateReport(pointId, round, { actualLat: null, actualLon: null });
+}
+function renderPickBanner() {
+  var el = document.getElementById("pickBanner");
+  if (!el) return;
+  if (!state.pickMode) { el.style.display = "none"; el.innerHTML = ""; return; }
+  var text = state.pickMode.type === "actual"
+    ? "Klik pada peta untuk menandai lokasi sampling aktual titik " + esc(state.pickMode.pointId)
+    : "Klik pada peta untuk menentukan lokasi titik baru";
+  el.style.display = "flex";
+  el.innerHTML = "<span>" + text + "</span><button type=\"button\" data-action=\"cancel-pick\">Batal</button>";
+}
 
 /* ---------------------------------------------------------------------
    Icons
@@ -407,7 +650,11 @@ var ICONS = {
   download: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 4v12m0 0-4-4m4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
   camera: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="14" r="3.4" stroke="currentColor" stroke-width="1.7"/></svg>',
   trash: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
-  droplet: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 3C12 3 6 10.5 6 15a6 6 0 0 0 12 0c0-4.5-6-12-6-12Z" stroke="#2FD9C7" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.6 15.4a3.4 3.4 0 0 0 3.4 3.4" stroke="#2FD9C7" stroke-width="1.4" stroke-linecap="round"/></svg>'
+  droplet: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M12 3C12 3 6 10.5 6 15a6 6 0 0 0 12 0c0-4.5-6-12-6-12Z" stroke="#2FD9C7" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.6 15.4a3.4 3.4 0 0 0 3.4 3.4" stroke="#2FD9C7" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  expand: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  collapse: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 9h5V4M20 9h-5V4M4 15h5v5M20 15h-5v5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  plus: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  pin: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21Z" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.3" stroke="currentColor" stroke-width="1.7"/></svg>'
 };
 
 function esc(s) {
@@ -423,19 +670,24 @@ function render() {
   var round = state.round;
   var q = (state.search || "").trim().toLowerCase();
 
+  var pts = allPoints();
   var doneAll = 0, issueAll = 0, beforeDone = 0, afterDone = 0;
-  POINTS.forEach(function (p) {
+  pts.forEach(function (p) {
     var r = repOf(p.id, round);
     if (r.done) doneAll++;
     if (r.issue) issueAll++;
     if (repOf(p.id, "before").done) beforeDone++;
     if (repOf(p.id, "after").done) afterDone++;
   });
-  var total = POINTS.length;
+  var total = pts.length;
   var pending = total - doneAll;
   var pctDone = total ? Math.round((doneAll / total) * 100) : 0;
   var beforePct = total ? Math.round((beforeDone / total) * 100) : 0;
   var afterPct = total ? Math.round((afterDone / total) * 100) : 0;
+
+  document.getElementById("metaChip").textContent = total + " titik pada " + GRIDS.length + " area grid";
+  document.getElementById("kpiTotal").textContent = total;
+  document.getElementById("kpiTotalSub").textContent = GRIDS.length + " area grid" + (state.customPoints.length ? " termasuk " + state.customPoints.length + " titik tambahan" : "");
 
   document.getElementById("roundBeforeBtn").className = "roundbtn before" + (round === "before" ? " active" : "");
   document.getElementById("roundAfterBtn").className = "roundbtn after" + (round === "after" ? " active" : "");
@@ -479,7 +731,7 @@ function render() {
 
   var searchResults = [];
   if (q) {
-    searchResults = POINTS.filter(function (p) { return p.id.toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
+    searchResults = pts.filter(function (p) { return p.id.toLowerCase().indexOf(q) !== -1; }).slice(0, 8);
   }
   var resultsBox = document.getElementById("searchResults");
   if (searchResults.length) {
@@ -507,7 +759,8 @@ function render() {
 
   var exportPayload = {
     schema: "oilspill-sampling-v2", exportedAt: new Date().toISOString(),
-    totalPoints: total, totalGrids: GRIDS.length, reports: state.reports, gridNotes: state.gridNotes
+    totalPoints: total, totalGrids: GRIDS.length, reports: state.reports, gridNotes: state.gridNotes,
+    customPoints: state.customPoints
   };
   document.getElementById("exportLink").href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
   document.getElementById("exportLink").download = "sampling-oilspill-" + new Date().toISOString().slice(0, 10) + ".json";
@@ -520,8 +773,39 @@ function renderBottomPanel(gridStatsList) {
   var root = document.getElementById("bottomPanel");
   var round = state.round;
 
+  if (state.addingPoint) {
+    var draft = state.newPointDraft;
+    var gridOptions = '<option value="">Tanpa grid</option>' + GRIDS.map(function (g) {
+      return '<option value="' + esc(g.id) + '"' + (draft.gridId === g.id ? " selected" : "") + '>' + esc(g.label) + '</option>';
+    }).join("");
+
+    root.innerHTML =
+      '<button type="button" class="backbtn" data-action="cancel-newpoint">' + ICONS.back + ' Batal, kembali ke ringkasan</button>' +
+      '<div class="newpointform">' +
+      '<p class="panel-title">Tambah Titik Sampling</p>' +
+      '<p class="panel-sub">Gunakan ini untuk titik yang belum tercatat di data grid awal, misalnya titik sampling air tambahan beserta isian sedimen.</p>' +
+      '<div class="newpointform-grid">' +
+      '<div class="field"><label for="newcode">Kode Titik</label><input id="newcode" type="text" placeholder="Contoh: AIR-TAMBAHAN-1" value="' + esc(draft.code) + '" data-field="newcode"/></div>' +
+      '<div class="field"><label for="newtype">Jenis</label><select id="newtype" data-field="newtype">' +
+      '<option value="air"' + (draft.type === "air" ? " selected" : "") + '>Air</option>' +
+      '<option value="sedimen"' + (draft.type === "sedimen" ? " selected" : "") + '>Sedimen</option></select></div>' +
+      '<div class="field"><label for="newgrid">Area Grid</label><select id="newgrid" data-field="newgrid">' + gridOptions + '</select></div>' +
+      '<div class="field"><label>Koordinat</label><div class="tworow">' +
+      '<input type="number" step="any" placeholder="Lintang" value="' + (draft.lat != null ? draft.lat : "") + '" data-field="newlat"/>' +
+      '<input type="number" step="any" placeholder="Bujur" value="' + (draft.lon != null ? draft.lon : "") + '" data-field="newlon"/>' +
+      '</div></div>' +
+      '</div>' +
+      '<div class="formactions">' +
+      '<button type="button" class="btn" data-action="pick-newpoint">' + ICONS.pin + ' Tandai di Peta</button>' +
+      '<button type="button" class="btn btn-primary" data-action="save-newpoint">Simpan Titik Baru</button>' +
+      '</div>' +
+      '</div>';
+    return;
+  }
+
   if (state.selectedId) {
-    var p = POINT_BY_ID[state.selectedId];
+    var p = getPoint(state.selectedId);
+    if (!p) { backToOverview(); return; }
     var g = GRID_BY_ID[p.gridId];
     var rBefore = repOf(p.id, "before");
     var rAfter = repOf(p.id, "after");
@@ -532,6 +816,12 @@ function renderBottomPanel(gridStatsList) {
     var badgeLabel = active.issue ? "Bermasalah" : (active.done ? "Selesai" : "Belum selesai");
     var doneBtnClass = "donebtn" + (active.done ? " ispressed" : "");
     var toggleLabel = active.done ? "Tandai belum selesai" : "Tandai selesai";
+    var hasActual = active.actualLat != null && active.actualLon != null;
+    var offsetLabel = "";
+    if (hasActual) {
+      var offM = distanceMeters(p.lat, p.lon, active.actualLat, active.actualLon);
+      offsetLabel = (offM < 10 ? (Math.round(offM * 10) / 10) : Math.round(offM)) + " m";
+    }
 
     var gallery = active.photos.length ? active.photos.map(function (ph, idx) {
       return '<div class="thumb"><img src="' + ph.url + '" data-action="open-lightbox" data-idx="' + idx + '" alt="Foto kegiatan sampling"/>' +
@@ -542,9 +832,9 @@ function renderBottomPanel(gridStatsList) {
       '<button type="button" class="backbtn" data-action="back-grid">' + ICONS.back + ' Kembali ke ' + esc(g ? g.label : "ringkasan") + '</button>' +
       '<div class="detailgrid">' +
       '<div class="detailcard">' +
-      '<div class="pointhead"><div class="pointid">' + esc(p.id) + '</div>' +
-      '<div class="pointgrid">' + esc(g ? g.label : "") + '</div>' +
-      '<div class="pointcoord">Lintang ' + p.lat.toFixed(6) + ', Bujur ' + p.lon.toFixed(6) + '</div></div>' +
+      '<div class="pointhead"><div class="pointid">' + esc(p.id) + (p.custom ? ' <span class="roundtag">Titik tambahan</span>' : '') + '</div>' +
+      '<div class="pointgrid">' + esc(g ? g.label : "Tanpa grid") + '</div>' +
+      '<div class="pointcoord">Rencana: lintang ' + p.lat.toFixed(6) + ', bujur ' + p.lon.toFixed(6) + '</div></div>' +
       '<div class="crossrow">' +
       '<div class="crosschip"><div class="cc-label">Sebelum</div><div class="cc-val" style="color:' + (rBefore.done ? "#3BD488" : "#9FB0B9") + '">' + (rBefore.done ? "Selesai" : "Belum") + '</div></div>' +
       '<div class="crosschip"><div class="cc-label">Sesudah</div><div class="cc-val" style="color:' + (rAfter.done ? "#3BD488" : "#9FB0B9") + '">' + (rAfter.done ? "Selesai" : "Belum") + '</div></div>' +
@@ -561,6 +851,18 @@ function renderBottomPanel(gridStatsList) {
       '<div class="field"><label for="pnotes">Catatan Kendala Sampling</label>' +
       '<textarea id="pnotes" placeholder="Contoh: akses lokasi terhalang pasang air laut, alat rusak, dan sebagainya" data-field="notes">' + esc(active.notes) + '</textarea></div>' +
       '<div class="checkrow"><input id="pissue" type="checkbox" data-field="issue"' + (active.issue ? " checked" : "") + '/><label for="pissue">Tandai ada kendala pada titik ini</label></div>' +
+      '<div class="field"><label>Lokasi Sampling Aktual</label>' +
+      '<div class="tworow">' +
+      '<input type="number" step="any" placeholder="Lintang aktual" value="' + (active.actualLat != null ? active.actualLat : "") + '" data-field="actualLat"/>' +
+      '<input type="number" step="any" placeholder="Bujur aktual" value="' + (active.actualLon != null ? active.actualLon : "") + '" data-field="actualLon"/>' +
+      '</div>' +
+      '<div class="actualactions">' +
+      '<button type="button" class="btn" data-action="pick-actual">' + ICONS.pin + ' Tandai di Peta</button>' +
+      (hasActual ? '<button type="button" class="btn" data-action="clear-actual">Hapus Lokasi Aktual</button>' : '') +
+      '</div>' +
+      (hasActual ? '<div class="actualoffset">Bergeser sekitar <b>' + offsetLabel + '</b> dari titik rencana. Aktifkan sakelar Lokasi Aktual di atas peta untuk melihatnya.</div>' : '') +
+      '</div>' +
+      (p.custom ? '<button type="button" class="dangerbtn" data-action="delete-point">' + ICONS.trash + ' Hapus Titik Ini</button>' : '') +
       '</div>' +
       '<div class="detailcard">' +
       '<div class="photohead"><div><h3>Dokumentasi Foto</h3><p>' + active.photos.length + ' foto tersimpan</p></div>' +
@@ -575,7 +877,7 @@ function renderBottomPanel(gridStatsList) {
   if (state.selectedGridId) {
     var gr = GRID_BY_ID[state.selectedGridId];
     var stats = gridStats(gr, round);
-    var members = gr.members.map(function (id) {
+    var members = gridMembers(gr).map(function (id) {
       var r = repOf(id, round);
       var statusText = r.issue ? "Bermasalah" : (r.done ? "Selesai" : "Belum");
       var dot = r.issue ? COLORS.issue : (r.done ? COLORS.done : COLORS.pending);
@@ -589,6 +891,7 @@ function renderBottomPanel(gridStatsList) {
       '<div class="detailcard">' +
       '<div class="griddetail-head"><p class="panel-title">' + esc(gr.label) + '</p><span class="griddetail-pct">' + Math.round(stats.pct * 100) + '%</span></div>' +
       '<p class="griddetail-remain">' + (stats.total - stats.done) + ' dari ' + stats.total + ' titik belum disampling pada tahap aktif</p>' +
+      '<p class="griddetail-area">Luas area: ' + formatArea(GRID_AREA[gr.id]) + '</p>' +
       '<ul class="memberlist">' + members + '</ul>' +
       '</div>' +
       '<div class="detailcard">' +
@@ -608,8 +911,11 @@ function renderBottomPanel(gridStatsList) {
   }).join("");
 
   root.innerHTML =
-    '<p class="panel-title">Ringkasan Area Grid</p>' +
-    '<p class="panel-sub">Diurutkan dari progres paling rendah pada tahap aktif. Klik salah satu area untuk melihat titik di dalamnya, atau klik langsung pada peta di atas.</p>' +
+    '<div class="panelhead-row">' +
+    '<div><p class="panel-title">Ringkasan Area Grid</p>' +
+    '<p class="panel-sub">Diurutkan dari progres paling rendah pada tahap aktif. Klik salah satu area untuk melihat titik di dalamnya, atau klik langsung pada peta di atas.</p></div>' +
+    '<button type="button" class="btn btn-primary" data-action="start-add-point">' + ICONS.plus + ' Tambah Titik</button>' +
+    '</div>' +
     '<div class="gridgrid">' + rows + '</div>';
 }
 
@@ -644,6 +950,8 @@ function onAction(e) {
   else if (action === "toggle-theme") toggleTheme();
   else if (action === "toggle-grid-labels") toggleGridLabels();
   else if (action === "toggle-point-labels") togglePointLabels();
+  else if (action === "toggle-actual") toggleActual();
+  else if (action === "toggle-fullscreen") toggleFullscreen();
   else if (action === "close-toast") { state.toast = null; renderToast(); }
   else if (action === "close-lightbox") { state.lightbox = null; renderLightbox(); }
   else if (action === "clear-search") { state.search = ""; document.getElementById("searchInput").value = ""; render(); }
@@ -658,14 +966,46 @@ function onAction(e) {
     var idx = parseInt(el.getAttribute("data-idx"), 10);
     var photo = currentPhotos[idx];
     if (photo) { state.lightbox = photo.url; renderLightbox(); }
+  } else if (action === "pick-actual") {
+    startPickActual(state.selectedId, state.round);
+  } else if (action === "clear-actual") {
+    clearActual(state.selectedId, state.round);
+  } else if (action === "cancel-pick") {
+    cancelPick();
+  } else if (action === "delete-point") {
+    deletePoint(state.selectedId);
+  } else if (action === "start-add-point") {
+    state.addingPoint = true;
+    state.newPointDraft = { code: "", type: "air", gridId: "", lat: null, lon: null };
+    render();
+  } else if (action === "cancel-newpoint") {
+    state.addingPoint = false;
+    state.pickMode = null;
+    renderPickBanner();
+    render();
+  } else if (action === "pick-newpoint") {
+    startPickNewPoint();
+  } else if (action === "save-newpoint") {
+    saveNewPoint();
   }
+}
+
+function parseCoord(v) {
+  var n = parseFloat(v);
+  return isNaN(n) ? null : n;
 }
 
 function onInput(e) {
   var t = e.target;
   var field = t.getAttribute && t.getAttribute("data-field");
   if (t.id === "searchInput") { state.search = t.value; render(); return; }
-  if (!field || !state.selectedId) return;
+  if (!field) return;
+
+  if (field === "newcode") { state.newPointDraft.code = t.value; return; }
+  if (field === "newlat") { state.newPointDraft.lat = parseCoord(t.value); return; }
+  if (field === "newlon") { state.newPointDraft.lon = parseCoord(t.value); return; }
+
+  if (!state.selectedId) return;
   if (field === "notes") {
     var existing = state.reports[state.selectedId] ? Object.assign({}, state.reports[state.selectedId]) : {};
     var current = existing[state.round] ? Object.assign({}, existing[state.round]) : defaultRound();
@@ -674,6 +1014,13 @@ function onInput(e) {
     state.reports[state.selectedId] = existing;
   } else if (field === "gridnote" && state.selectedGridId) {
     state.gridNotes[state.selectedGridId] = t.value;
+  } else if (field === "actualLat" || field === "actualLon") {
+    var val = parseCoord(t.value);
+    var patch = {}; patch[field] = val;
+    var ex = state.reports[state.selectedId] ? Object.assign({}, state.reports[state.selectedId]) : {};
+    var cur = ex[state.round] ? Object.assign({}, ex[state.round]) : defaultRound();
+    ex[state.round] = Object.assign({}, cur, patch);
+    state.reports[state.selectedId] = ex;
   }
 }
 
@@ -681,10 +1028,20 @@ function onChange(e) {
   var t = e.target;
   var field = t.getAttribute && t.getAttribute("data-field");
   if (t.id === "importInput") { handleImportInput(e); return; }
-  if (!field || !state.selectedId) return;
+  if (!field) return;
+
+  if (field === "newtype") { state.newPointDraft.type = t.value; return; }
+  if (field === "newgrid") { state.newPointDraft.gridId = t.value || ""; return; }
+
+  if (!state.selectedId) return;
   if (field === "date") updateReport(state.selectedId, state.round, { date: t.value });
   else if (field === "issue") updateReport(state.selectedId, state.round, { issue: t.checked });
   else if (field === "photos") { addPhotos(state.selectedId, state.round, t.files); t.value = ""; }
+  else if (field === "actualLat" || field === "actualLon") {
+    var val = parseCoord(t.value);
+    var patch = {}; patch[field] = val;
+    updateReport(state.selectedId, state.round, patch);
+  }
 }
 
 function onBlur(e) {
@@ -702,16 +1059,20 @@ function boot() {
   document.getElementById("searchClear").innerHTML = ICONS.close;
   document.getElementById("importIcon").innerHTML = ICONS.upload;
   document.getElementById("exportIcon").innerHTML = ICONS.download;
+  document.getElementById("fullscreenIcon").innerHTML = ICONS.expand;
 
   applyTheme();
   initMap();
   applyLabelVisibility();
+  var actualBtn = document.getElementById("toggleActual");
+  if (actualBtn) actualBtn.className = "labeltoggle" + (state.showActual ? " active" : "");
   render();
 
   document.body.addEventListener("click", onAction);
   document.body.addEventListener("input", onInput);
   document.body.addEventListener("change", onChange);
   document.body.addEventListener("focusout", onBlur, true);
+  document.addEventListener("fullscreenchange", onFullscreenChange);
 }
 
 document.addEventListener("DOMContentLoaded", boot);

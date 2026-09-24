@@ -30,14 +30,18 @@ Kedua berkas ini adalah data mentah asli yang menjadi dasar pembuatan peta dan a
 
 Aplikasi ini disajikan langsung dari `index.html` di akar repositori lewat GitHub Pages, tanpa bergantung pada layanan lain. Fiturnya meliputi:
 
-- Peta dengan latar citra udara asli hasil pemotretan drone lapangan, menampilkan seluruh area grid dan titik sampling berikut nama grid dan kode setiap titik, dengan pewarnaan otomatis sesuai status pengerjaan
-- Navigasi peta murni lewat mouse atau layar sentuh, gulir untuk memperbesar dan memperkecil, seret atau cubit untuk menggeser, tanpa tombol arah tambahan
-- Tombol terpisah untuk menampilkan atau menyembunyikan nama grid dan kode titik di peta
+- Peta dengan latar citra udara asli hasil pemotretan drone lapangan, menampilkan seluruh area grid dan titik sampling berikut nama grid dan kode setiap titik, dengan pewarnaan otomatis sesuai status pengerjaan. Grid yang baru sebagian selesai ditampilkan dengan isian gradasi warna sesuai persentase titik yang sudah disampling, bukan warna penuh
+- Navigasi peta murni lewat mouse atau layar sentuh, gulir untuk memperbesar dan memperkecil, seret atau cubit untuk menggeser, tanpa tombol arah tambahan, dan tombol layar penuh di pojok kanan atas peta
+- Tombol terpisah untuk menampilkan atau menyembunyikan nama grid, kode titik, dan lokasi sampling aktual di peta
+- Info singkat saat kursor diarahkan ke sebuah titik, menampilkan status dan tanggal sampling tahap sebelum dan sesudah tanpa perlu membuka detailnya
 - Formulir laporan per titik: tanggal sampling, catatan kendala, dan lampiran foto kegiatan, terpisah untuk tahap sebelum dan sesudah pemulihan lahan (recovery)
+- Lokasi sampling aktual per titik, untuk mencatat posisi sebenarnya saat sampling meleset dari titik rencana, diisi manual atau dengan menandai langsung di peta. Pergeserannya dalam meter dihitung otomatis, dan bila ditampilkan, peta menggambar garis dari titik rencana ke titik aktual
+- Opsi menambah titik sampling baru secara manual, lengkap dengan kode, jenis (air atau sedimen), area grid, dan koordinatnya, untuk titik yang belum tercatat di data KML awal. Titik tambahan ini dapat dihapus kembali dan ikut tersimpan pada ekspor dan impor JSON
+- Detail tiap area grid menampilkan luas areanya dalam meter persegi dan hektar, dihitung dari poligon aslinya
 - Dashboard ringkasan progres, termasuk perbandingan tahap sebelum dan sesudah recovery serta daftar area yang paling memerlukan perhatian
 - Ringkasan area grid ditampilkan di bawah peta agar peta bisa ditampilkan sebesar mungkin
 - Mode gelap dan terang yang dapat diganti dari tombol di pojok kanan atas
-- Ekspor dan impor data dalam format JSON untuk pencadangan dan berbagi data antar perangkat
+- Ekspor dan impor data dalam format JSON untuk pencadangan dan berbagi data antar perangkat, termasuk titik tambahan dan lokasi sampling aktual
 
 Folder `app/project/` menyimpan versi sebelumnya dari aplikasi ini, yang dibuat sebagai Claude Artifact bertipe Design. Versi tersebut masih dapat dibuka lewat Claude, tetapi tidak dapat menampilkan citra udara karena keterbatasan platform tersebut, sehingga petanya masih berupa gambar skematik. Berkas ini disimpan sebagai riwayat, bukan versi yang disarankan untuk dipakai.
 
