@@ -52,6 +52,8 @@ Aplikasi ini disajikan langsung dari `index.html` di akar repositori lewat GitHu
 - Ringkasan area grid ditampilkan di bawah peta agar peta bisa ditampilkan sebesar mungkin
 - Mode gelap dan terang yang dapat diganti dari tombol di pojok kanan atas
 - Ekspor dan impor data dalam format JSON untuk pencadangan dan berbagi data antar perangkat, termasuk titik tambahan dan lokasi sampling aktual
+- Setiap kali halaman dibuka, aplikasi otomatis memeriksa folder `data/exports/` di repositori ini lewat GitHub, mengambil berkas ekspor JSON dengan nama terbaru bila ada, lalu menggabungkannya ke data pada perangkat tersebut (menampilkan "Memperbarui database..." selama prosesnya), supaya semua orang yang membuka halaman ini melihat data terbaru yang sudah dibagikan tim tanpa perlu impor manual. Lihat `data/exports/README.md` untuk cara membagikan pembaruan
+- Tautan "Tentang & Dukung Pengembang" di footer menampilkan foto tim pembuat aplikasi ini beserta kode QRIS bila ingin memberi dukungan dana untuk pengembangannya
 
 Folder `app/project/` menyimpan versi sebelumnya dari aplikasi ini, yang dibuat sebagai Claude Artifact bertipe Design. Versi tersebut masih dapat dibuka lewat Claude, tetapi tidak dapat menampilkan citra udara karena keterbatasan platform tersebut, sehingga petanya masih berupa gambar skematik. Berkas ini disimpan sebagai riwayat, bukan versi yang disarankan untuk dipakai.
 

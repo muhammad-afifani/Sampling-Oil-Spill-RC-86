@@ -244,6 +244,8 @@ var state = {
   statusFilter: "all",
   lightbox: null,
   toast: null,
+  aboutOpen: false,
+  qrisZoom: false,
   theme: localStorage.getItem(THEME_KEY) || "dark",
   showGridLabels: localStorage.getItem(LABELS_KEY + "_grid") !== "off",
   showPointLabels: localStorage.getItem(LABELS_KEY + "_point") !== "off",
@@ -918,7 +920,8 @@ function handleImportInput(e) {
   reader.readAsText(file);
 }
 
-function mergeImport(data) {
+function mergeImport(data, opts) {
+  opts = opts || {};
   var incoming = (data && data.reports) || {};
   var incomingNotes = (data && data.gridNotes) || {};
   var incomingCustom = (data && data.customPoints) || [];
@@ -964,19 +967,72 @@ function mergeImport(data) {
   });
   state.gridNotes = Object.assign({}, state.gridNotes, incomingNotes);
 
-  Promise.all(photoWrites).then(function () { finishImport(updated, addedPoints); }).catch(function () {
-    finishImport(updated, addedPoints, true);
+  Promise.all(photoWrites).then(function () { finishImport(updated, addedPoints, false, opts); }).catch(function () {
+    finishImport(updated, addedPoints, true, opts);
   });
 }
 
-function finishImport(updated, addedPoints, photoFailure) {
+function finishImport(updated, addedPoints, photoFailure, opts) {
+  opts = opts || {};
   persist();
   render();
-  var msg = "Impor selesai. " + updated + " entri diperbarui";
-  if (addedPoints) msg += ", " + addedPoints + " titik tambahan baru ditambahkan";
-  msg += " dari berkas.";
-  if (photoFailure) msg += " Sebagian foto gagal disimpan.";
-  showToast(photoFailure ? "warn" : "success", msg);
+  if (!opts.silent) {
+    var msg = "Impor selesai. " + updated + " entri diperbarui";
+    if (addedPoints) msg += ", " + addedPoints + " titik tambahan baru ditambahkan";
+    msg += " dari berkas.";
+    if (photoFailure) msg += " Sebagian foto gagal disimpan.";
+    showToast(photoFailure ? "warn" : "success", msg);
+  }
+  if (opts.onDone) opts.onDone(updated, addedPoints, photoFailure);
+}
+
+/* ---------------------------------------------------------------------
+   Shared data sync: on load, check the data/exports/ folder in the
+   GitHub repository for the most recently named JSON export and merge
+   it in, so everyone opening the page picks up the latest team update.
+   Best-effort: any failure (offline, nothing uploaded yet) is silent.
+--------------------------------------------------------------------- */
+var SYNC_OWNER = "muhammad-afifani";
+var SYNC_REPO = "Sampling-Oil-Spill-RC-86";
+var SYNC_BRANCH = "claude/stoic-cannon-ew2fbf";
+var SYNC_PATH = "data/exports";
+
+function showSyncBanner(msg) {
+  var el = document.getElementById("syncBanner");
+  if (!el) return;
+  el.innerHTML = '<span class="syncspinner"></span><span>' + esc(msg) + '</span>';
+  el.style.display = "flex";
+}
+function hideSyncBanner() {
+  var el = document.getElementById("syncBanner");
+  if (!el) return;
+  el.style.display = "none";
+  el.innerHTML = "";
+}
+
+function syncFromRemote() {
+  if (!window.fetch) return;
+  showSyncBanner("Memperbarui database…");
+  var listUrl = "https://api.github.com/repos/" + SYNC_OWNER + "/" + SYNC_REPO + "/contents/" + SYNC_PATH + "?ref=" + SYNC_BRANCH;
+  fetch(listUrl, { headers: { Accept: "application/vnd.github+json" } })
+    .then(function (res) { return res.ok ? res.json() : []; })
+    .then(function (list) {
+      if (!Array.isArray(list)) { hideSyncBanner(); return; }
+      var files = list.filter(function (f) { return f.type === "file" && /\.json$/i.test(f.name); });
+      if (!files.length) { hideSyncBanner(); return; }
+      files.sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
+      var latest = files[files.length - 1];
+      return fetch(latest.download_url).then(function (res) { return res.json(); }).then(function (data) {
+        mergeImport(data, {
+          silent: true,
+          onDone: function (updated, addedPoints) {
+            hideSyncBanner();
+            if (updated || addedPoints) showToast("success", "Database diperbarui dari repository (" + updated + " entri).");
+          }
+        });
+      });
+    })
+    .catch(function () { hideSyncBanner(); });
 }
 
 /* ---------------------------------------------------------------------
@@ -1426,6 +1482,30 @@ function renderLightbox() {
   }
 }
 
+function renderAbout() {
+  var root = document.getElementById("aboutRoot");
+  if (!state.aboutOpen) { root.innerHTML = ""; return; }
+  root.innerHTML = '<div class="lightbox-backdrop" data-action="close-about">' +
+    '<div class="aboutcard">' +
+    '<button type="button" class="lightbox-close" data-action="close-about" aria-label="Tutup">' + ICONS.close + '</button>' +
+    '<img src="assets/team-photo.webp" class="about-photo" alt="Tim di balik pengembangan tools ini"/>' +
+    '<p class="about-caption">Tools ini dibuat dan terus dikembangkan secara mandiri oleh tim lapangan.</p>' +
+    '<p class="about-support">Mohon dukungan dana untuk kelanjutan update, progres, dan pengembangan tools ini.</p>' +
+    '<button type="button" class="about-qrisbtn" data-action="open-qris">' +
+    '<img src="assets/qris-support.jpg" class="about-qris-thumb" alt="QRIS dukungan"/>' +
+    '<span>Ketuk untuk memperbesar QRIS</span>' +
+    '</button>' +
+    '</div></div>';
+}
+
+function renderQrisZoom() {
+  var root = document.getElementById("qrisZoomRoot");
+  if (!state.qrisZoom) { root.innerHTML = ""; return; }
+  root.innerHTML = '<div class="lightbox-backdrop" data-action="close-qris">' +
+    '<img src="assets/qris-support.jpg" class="lightbox-img" alt="QRIS dukungan"/>' +
+    '<button type="button" class="lightbox-close" data-action="close-qris" aria-label="Tutup">' + ICONS.close + '</button></div>';
+}
+
 /* ---------------------------------------------------------------------
    Event delegation
 --------------------------------------------------------------------- */
@@ -1448,6 +1528,10 @@ function onAction(e) {
   else if (action === "toggle-fullscreen") toggleFullscreen();
   else if (action === "close-toast") { state.toast = null; renderToast(); }
   else if (action === "close-lightbox") { state.lightbox = null; renderLightbox(); }
+  else if (action === "open-about") { state.aboutOpen = true; renderAbout(); }
+  else if (action === "close-about") { state.aboutOpen = false; state.qrisZoom = false; renderAbout(); renderQrisZoom(); }
+  else if (action === "open-qris") { state.qrisZoom = true; renderQrisZoom(); }
+  else if (action === "close-qris") { state.qrisZoom = false; renderQrisZoom(); }
   else if (action === "clear-search") { state.search = ""; document.getElementById("searchInput").value = ""; render(); }
   else if (action === "set-filter") { state.statusFilter = el.getAttribute("data-filter"); render(); }
   else if (action === "set-round") { state.round = el.getAttribute("data-round"); render(); }
@@ -1593,6 +1677,7 @@ function boot() {
   if (actualBtn) actualBtn.className = "labeltoggle" + (state.showActual ? " active" : "");
   render();
   migrateOldPhotos();
+  syncFromRemote();
 
   document.body.addEventListener("click", onAction);
   document.body.addEventListener("input", onInput);
