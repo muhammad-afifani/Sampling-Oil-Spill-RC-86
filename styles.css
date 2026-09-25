@@ -382,6 +382,37 @@ a{color:var(--teal-text);text-decoration:none;}
 .about-qris-thumb{width:110px;border-radius:8px;display:block;}
 .about-qrisbtn span{font-size:11px;color:var(--teal-text);font-weight:600;}
 
+.print-only{display:none;}
+.printsheet-border{display:grid;grid-template-columns:1fr 92mm;gap:4mm;height:100%;border:0.6mm solid #111;padding:4mm;box-sizing:border-box;background:#fff;}
+.printsheet-map{border:0.3mm solid #111;overflow:hidden;background:#fff;}
+.printsheet-map svg{display:block;width:100%;height:100%;}
+.printsheet-kop{display:flex;flex-direction:column;gap:3mm;overflow:hidden;}
+.printkop-box{border:0.3mm solid #111;padding:2.5mm;font-family:Arial,sans-serif;color:#111;}
+.printkop-boxtitle{margin:0 0 2mm;font-size:3mm;font-weight:700;letter-spacing:.03em;border-bottom:0.3mm solid #111;padding-bottom:1mm;}
+.printkop-legitem{display:flex;align-items:center;gap:2mm;font-size:2.6mm;margin-bottom:1.5mm;}
+.printkop-dot{width:3mm;height:3mm;border-radius:50%;flex:none;display:inline-block;}
+.printkop-sq{width:3mm;height:3mm;flex:none;display:inline-block;}
+.printkop-line{width:5mm;height:0;border-top:0.5mm solid #E6007E;flex:none;display:inline-block;}
+.printkop-geotable{width:100%;border-collapse:collapse;font-size:2.5mm;}
+.printkop-geotable td{padding:0.8mm 0;border-bottom:0.15mm solid #ccc;}
+.printkop-geotable td:first-child{color:#555;width:45%;}
+.printkop-note{font-size:2.2mm;color:#555;margin:2mm 0 0;line-height:1.4;}
+.printkop-title{text-align:center;margin-top:auto;}
+.printkop-company{margin:0;font-size:3.4mm;font-weight:700;}
+.printkop-client{margin:0.5mm 0 0;font-size:2.8mm;font-weight:600;color:#333;}
+.printkop-subject{margin:2mm 0;font-size:2.6mm;font-weight:600;line-height:1.4;}
+.printkop-titletable{width:100%;border-collapse:collapse;font-size:2.3mm;text-align:left;margin-top:1mm;}
+.printkop-titletable td{padding:0.6mm 0;border-bottom:0.15mm solid #ccc;}
+.printkop-titletable td:first-child{color:#555;width:40%;}
+.printkop-disclaimer{font-size:1.9mm;color:#777;margin:2mm 0 0;line-height:1.4;}
+@media print{
+  @page{size:A3 landscape;margin:8mm;}
+  html,body{background:#fff;}
+  body>*:not(#printSheetRoot){display:none!important;}
+  #printSheetRoot{display:block!important;}
+  .printsheet{width:404mm;height:281mm;}
+}
+
 @media (max-width: 1180px){
   .dash-grid{grid-template-columns:repeat(2,1fr);}
   .ringcard{grid-column:span 2;flex-direction:row;justify-content:flex-start;gap:16px;}

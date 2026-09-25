@@ -517,7 +517,7 @@ function applyGridPattern(g, round) {
 function initMap() {
   map = L.map("map", {
     zoomControl: false, attributionControl: true,
-    minZoom: 15, maxZoom: 20, maxBoundsViscosity: 1
+    minZoom: 15, maxZoom: 24, maxBoundsViscosity: 1
   });
   L.imageOverlay(BASEMAP_URL, IMAGE_BOUNDS, { attribution: BASEMAP_ATTR }).addTo(map);
   map.setMaxBounds(L.latLngBounds(IMAGE_BOUNDS).pad(0.25));
@@ -1114,6 +1114,205 @@ function exportPointsExcel() {
   document.body.removeChild(a);
   setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
   showToast("success", "Rekap data berhasil diekspor ke berkas Excel (" + pts.length + " titik).");
+}
+
+/* ---------------------------------------------------------------------
+   Map PDF export: builds a print-only "peta titik sampling" sheet
+   (map + legend + coordinate info + title block) and hands it to the
+   browser's own print dialog, so "Save as PDF" produces the file.
+   Coordinates on the sheet are plain WGS84 latitude/longitude (the
+   same reference frame the rest of this app already uses) rather than
+   the site's own local survey grid, since that grid's exact datum
+   shift could not be independently verified here. Excludes the actual
+   sampling location layer by design.
+--------------------------------------------------------------------- */
+var MAP_SVG_MPERDEG_LAT = 110574;
+function mPerDegLon(refLat) { return 111320 * Math.cos(refLat * Math.PI / 180); }
+
+function niceGraticuleStep(rangeDeg) {
+  if (rangeDeg > 0.012) return 0.002;
+  if (rangeDeg > 0.006) return 0.001;
+  if (rangeDeg > 0.003) return 0.0005;
+  return 0.0002;
+}
+
+function ringCentroid(ring) {
+  var n = ring.length, sumLat = 0, sumLon = 0;
+  for (var i = 0; i < n; i++) { sumLat += ring[i][0]; sumLon += ring[i][1]; }
+  return [sumLat / n, sumLon / n];
+}
+
+function buildMapExportSvg(round, mapWmm, mapHmm) {
+  var lats = [], lons = [];
+  GRIDS.forEach(function (g) { g.ring.forEach(function (c) { lats.push(c[0]); lons.push(c[1]); }); });
+  allPoints().forEach(function (p) { lats.push(p.lat); lons.push(p.lon); });
+  var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+  var minLon = Math.min.apply(null, lons), maxLon = Math.max.apply(null, lons);
+  var padLat = (maxLat - minLat) * 0.12, padLon = (maxLon - minLon) * 0.12;
+  minLat -= padLat; maxLat += padLat; minLon -= padLon; maxLon += padLon;
+
+  var midLat = (minLat + maxLat) / 2;
+  var mLon = mPerDegLon(midLat), mLat = MAP_SVG_MPERDEG_LAT;
+  var realWidthM = (maxLon - minLon) * mLon;
+  var realHeightM = (maxLat - minLat) * mLat;
+  var scaleMmPerM = Math.min(mapWmm / realWidthM, mapHmm / realHeightM);
+  var usedW = realWidthM * scaleMmPerM, usedH = realHeightM * scaleMmPerM;
+  var offX = (mapWmm - usedW) / 2, offY = (mapHmm - usedH) / 2;
+
+  function project(lat, lon) {
+    var xm = (lon - minLon) * mLon;
+    var ym = (maxLat - lat) * mLat;
+    return [offX + xm * scaleMmPerM, offY + ym * scaleMmPerM];
+  }
+
+  var parts = [];
+  parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + mapWmm + ' ' + mapHmm + '" width="' + mapWmm + 'mm" height="' + mapHmm + 'mm" font-family="Arial, sans-serif">');
+  parts.push('<rect x="0" y="0" width="' + mapWmm + '" height="' + mapHmm + '" fill="#eef1f2"/>');
+
+  var imgTL = project(IMAGE_BOUNDS[1][0], IMAGE_BOUNDS[0][1]);
+  var imgBR = project(IMAGE_BOUNDS[0][0], IMAGE_BOUNDS[1][1]);
+  parts.push('<image href="' + BASEMAP_URL + '" x="' + imgTL[0].toFixed(2) + '" y="' + imgTL[1].toFixed(2) + '" width="' + (imgBR[0] - imgTL[0]).toFixed(2) + '" height="' + (imgBR[1] - imgTL[1]).toFixed(2) + '" preserveAspectRatio="none"/>');
+
+  // Graticule: short edge tick marks + light interior cross-hairs (kept subtle
+  // so grid/point labels stay legible), labelled in WGS84 decimal degrees.
+  var stepLat = niceGraticuleStep(maxLat - minLat);
+  var stepLon = niceGraticuleStep(maxLon - minLon);
+  var gTick = 'stroke="#E6007E" stroke-width="0.25"';
+  var gCross = 'stroke="#E6007E" stroke-width="0.12" stroke-opacity="0.4"';
+  var gText = 'font-size="2.4" fill="#E6007E"';
+  var TICK = 2.2;
+  for (var la = Math.ceil(minLat / stepLat) * stepLat; la <= maxLat; la += stepLat) {
+    var y = project(la, minLon)[1];
+    parts.push('<line x1="0" y1="' + y.toFixed(2) + '" x2="' + TICK + '" y2="' + y.toFixed(2) + '" ' + gTick + '/>');
+    parts.push('<line x1="' + (mapWmm - TICK).toFixed(2) + '" y1="' + y.toFixed(2) + '" x2="' + mapWmm + '" y2="' + y.toFixed(2) + '" ' + gTick + '/>');
+    parts.push('<text x="' + (TICK + 0.8).toFixed(2) + '" y="' + (y - 0.6).toFixed(2) + '" ' + gText + '>' + Math.abs(la).toFixed(4) + '°S</text>');
+  }
+  for (var lo = Math.ceil(minLon / stepLon) * stepLon; lo <= maxLon; lo += stepLon) {
+    var x = project(minLat, lo)[0];
+    parts.push('<line x1="' + x.toFixed(2) + '" y1="0" x2="' + x.toFixed(2) + '" y2="' + TICK + '" ' + gTick + '/>');
+    parts.push('<line x1="' + x.toFixed(2) + '" y1="' + (mapHmm - TICK).toFixed(2) + '" x2="' + x.toFixed(2) + '" y2="' + mapHmm + '" ' + gTick + '/>');
+    parts.push('<text x="' + (x + 0.6).toFixed(2) + '" y="' + (mapHmm - TICK - 0.8).toFixed(2) + '" ' + gText + ' transform="rotate(-90 ' + x.toFixed(2) + ' ' + (mapHmm - TICK - 0.8).toFixed(2) + ')">' + lo.toFixed(4) + '°E</text>');
+  }
+  for (var la2 = Math.ceil(minLat / stepLat) * stepLat; la2 <= maxLat; la2 += stepLat) {
+    for (var lo2 = Math.ceil(minLon / stepLon) * stepLon; lo2 <= maxLon; lo2 += stepLon) {
+      var cxy = project(la2, lo2);
+      parts.push('<line x1="' + (cxy[0] - 1.4).toFixed(2) + '" y1="' + cxy[1].toFixed(2) + '" x2="' + (cxy[0] + 1.4).toFixed(2) + '" y2="' + cxy[1].toFixed(2) + '" ' + gCross + '/>');
+      parts.push('<line x1="' + cxy[0].toFixed(2) + '" y1="' + (cxy[1] - 1.4).toFixed(2) + '" x2="' + cxy[0].toFixed(2) + '" y2="' + (cxy[1] + 1.4).toFixed(2) + '" ' + gCross + '/>');
+    }
+  }
+
+  // Grid polygons + labels
+  GRIDS.forEach(function (g) {
+    var pts = g.ring.map(function (c) { var xy = project(c[0], c[1]); return xy[0].toFixed(2) + "," + xy[1].toFixed(2); }).join(" ");
+    parts.push('<polygon points="' + pts + '" fill="none" stroke="#E6007E" stroke-width="0.6"/>');
+    var c = ringCentroid(g.ring.slice(0, -1));
+    var cxy = project(c[0], c[1]);
+    parts.push('<text x="' + cxy[0].toFixed(2) + '" y="' + cxy[1].toFixed(2) + '" font-size="4.6" font-weight="700" fill="#111" text-anchor="middle">' + esc(g.label) + '</text>');
+  });
+
+  // Points (actual-location layer intentionally excluded)
+  allPoints().forEach(function (p) {
+    var r = repOf(p.id, round);
+    var xy = project(p.lat, p.lon);
+    var fill = r.issue ? "#F2635C" : (r.done ? "#3BD488" : "#FFD400");
+    if (r.issue) {
+      parts.push('<rect x="' + (xy[0] - 1.3).toFixed(2) + '" y="' + (xy[1] - 1.3).toFixed(2) + '" width="2.6" height="2.6" fill="' + fill + '" stroke="#7a1410" stroke-width="0.25"/>');
+    } else {
+      parts.push('<circle cx="' + xy[0].toFixed(2) + '" cy="' + xy[1].toFixed(2) + '" r="1.4" fill="' + fill + '" stroke="#5c4b00" stroke-width="0.25"/>');
+    }
+    parts.push('<text x="' + (xy[0] + 1.8).toFixed(2) + '" y="' + (xy[1] - 1.2).toFixed(2) + '" font-size="2.3" fill="#0a1116" style="paint-order:stroke" stroke="#fff" stroke-width="0.6">' + esc(p.id) + '</text>');
+  });
+
+  // North arrow
+  var naX = mapWmm - 14, naY = 14;
+  parts.push('<g transform="translate(' + naX + ',' + naY + ')">' +
+    '<polygon points="0,-9 3,4 0,1 -3,4" fill="#111"/>' +
+    '<text x="0" y="-11" font-size="4" font-weight="700" text-anchor="middle" fill="#111">N</text></g>');
+
+  // Scale bar
+  var candidates = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
+  var barM = 20;
+  for (var i = 0; i < candidates.length; i++) {
+    if (candidates[i] * scaleMmPerM <= mapWmm * 0.22) barM = candidates[i]; else break;
+  }
+  var barMm = barM * scaleMmPerM;
+  var barX = 6, barY = mapHmm - 8;
+  parts.push('<g transform="translate(' + barX + ',' + barY + ')">' +
+    '<rect x="0" y="0" width="' + barMm.toFixed(2) + '" height="1.6" fill="#111"/>' +
+    '<rect x="0" y="0" width="' + (barMm / 2).toFixed(2) + '" height="1.6" fill="#fff" stroke="#111" stroke-width="0.2"/>' +
+    '<text x="0" y="-1" font-size="2.6" fill="#111">0</text>' +
+    '<text x="' + barMm.toFixed(2) + '" y="-1" font-size="2.6" fill="#111" text-anchor="end">' + barM + ' m</text></g>');
+
+  parts.push('</svg>');
+  return { svg: parts.join(""), scaleMmPerM: scaleMmPerM };
+}
+
+function buildPrintSheetHtml(round) {
+  var MAP_W = 305, MAP_H = 267;
+  var built = buildMapExportSvg(round, MAP_W, MAP_H);
+  var printScaleN = Math.round((1000 / built.scaleMmPerM) / 100) * 100;
+
+  var doneAll = 0, issueAll = 0, total = 0;
+  allPoints().forEach(function (p) {
+    total++;
+    var r = repOf(p.id, round);
+    if (r.done) doneAll++;
+    if (r.issue) issueAll++;
+  });
+
+  var legendHtml = '<div class="printkop-box"><p class="printkop-boxtitle">LEGENDA</p>' +
+    '<div class="printkop-legitem"><span class="printkop-dot" style="background:#FFD400;border:0.3mm solid #5c4b00"></span>Titik Sampling (Belum)</div>' +
+    '<div class="printkop-legitem"><span class="printkop-dot" style="background:#3BD488;border:0.3mm solid #22B871"></span>Titik Sudah Disampling</div>' +
+    '<div class="printkop-legitem"><span class="printkop-sq" style="background:#F2635C;border:0.3mm solid #7a1410"></span>Tidak Bisa Disampling / Kendala</div>' +
+    '<div class="printkop-legitem"><span class="printkop-line"></span>Batas Grid (Grid Limit)</div>' +
+    '</div>';
+
+  var geoHtml = '<div class="printkop-box"><p class="printkop-boxtitle">PARAMETER KOORDINAT</p>' +
+    '<table class="printkop-geotable">' +
+    '<tr><td>Datum</td><td>WGS 84</td></tr>' +
+    '<tr><td>Sistem koordinat</td><td>Lintang / Bujur (derajat desimal)</td></tr>' +
+    '<tr><td>Skala cetak</td><td>≈ 1:' + printScaleN + ' (kertas A3)</td></tr>' +
+    '</table>' +
+    '<p class="printkop-note">Koordinat pada peta ini memakai referensi WGS 84 dari data aplikasi, bukan grid lokal survei internal.</p>' +
+    '</div>';
+
+  var summaryHtml = '<div class="printkop-box"><p class="printkop-boxtitle">RINGKASAN</p>' +
+    '<table class="printkop-geotable">' +
+    '<tr><td>Tahap</td><td>' + (round === "before" ? "Before Recovery" : "After Recovery") + '</td></tr>' +
+    '<tr><td>Total titik</td><td>' + total + '</td></tr>' +
+    '<tr><td>Selesai</td><td>' + doneAll + '</td></tr>' +
+    '<tr><td>Kendala</td><td>' + issueAll + '</td></tr>' +
+    '<tr><td>Area grid</td><td>' + GRIDS.length + '</td></tr>' +
+    '</table></div>';
+
+  var titleHtml = '<div class="printkop-box printkop-title">' +
+    '<p class="printkop-company">PT ELNUSA Tbk</p>' +
+    '<p class="printkop-client">PERTAMINA HULU MAHAKAM</p>' +
+    '<p class="printkop-subject">HANDIL TOPOGRAPHY SURVEY<br/>H-YB AREA</p>' +
+    '<table class="printkop-titletable">' +
+    '<tr><td>Judul</td><td>Peta Titik Sampling</td></tr>' +
+    '<tr><td>Tanggal cetak</td><td>' + esc(formatDateID(new Date().toISOString().slice(0, 10))) + '</td></tr>' +
+    '<tr><td>Sumber</td><td>Peta Sampling Oil Spill</td></tr>' +
+    '</table>' +
+    '<p class="printkop-disclaimer">Dibuat otomatis oleh Peta Sampling Oil Spill (Tim ENV BPN &amp; HCA) &mdash; bukan dokumen survei resmi.</p>' +
+    '</div>';
+
+  return '<div class="printsheet"><div class="printsheet-border">' +
+    '<div class="printsheet-map">' + built.svg + '</div>' +
+    '<div class="printsheet-kop">' + legendHtml + geoHtml + summaryHtml + titleHtml + '</div>' +
+    '</div></div>';
+}
+
+function exportMapPdf() {
+  var root = document.getElementById("printSheetRoot");
+  root.innerHTML = buildPrintSheetHtml(state.round);
+  setTimeout(function () {
+    window.print();
+  }, 120);
+}
+function onAfterPrint() {
+  var root = document.getElementById("printSheetRoot");
+  if (root) root.innerHTML = "";
 }
 
 /* ---------------------------------------------------------------------
@@ -1887,6 +2086,7 @@ function onAction(e) {
     if (ms) ms.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   else if (action === "export-points-excel") exportPointsExcel();
+  else if (action === "export-map-pdf") exportMapPdf();
   else if (action === "toggle-actual") toggleActual();
   else if (action === "toggle-fullscreen") toggleFullscreen();
   else if (action === "close-toast") { state.toast = null; renderToast(); }
@@ -2050,6 +2250,7 @@ function boot() {
   document.body.addEventListener("dragleave", onDragLeave);
   document.body.addEventListener("drop", onDrop);
   document.addEventListener("fullscreenchange", onFullscreenChange);
+  window.addEventListener("afterprint", onAfterPrint);
 }
 
 document.addEventListener("DOMContentLoaded", boot);
