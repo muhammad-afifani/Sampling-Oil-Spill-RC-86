@@ -13,6 +13,16 @@ GRIDS.forEach(function (g) { GRID_BY_ID[g.id] = g; });
 var POINT_BY_ID = {};
 POINTS.forEach(function (p) { POINT_BY_ID[p.id] = p; });
 
+/* A muted, distinct boundary color per grid (not tied to sampling
+   status), spaced with the golden angle so adjacent grids in the list
+   don't end up with similar hues. Used so grid outlines are easy to
+   tell apart on the map, independent from the progress fill. */
+var GRID_COLOR = {};
+GRIDS.forEach(function (g, idx) {
+  var hue = Math.round((idx * 137.508) % 360);
+  GRID_COLOR[g.id] = "hsl(" + hue + ", 42%, 56%)";
+});
+
 /* ---------------------------------------------------------------------
    Constants
 --------------------------------------------------------------------- */
@@ -239,6 +249,7 @@ var state = {
   showPointLabels: localStorage.getItem(LABELS_KEY + "_point") !== "off",
   showActual: localStorage.getItem(LABELS_KEY + "_actual") === "on",
   showGridFill: localStorage.getItem(LABELS_KEY + "_fill") !== "off",
+  showGridColors: localStorage.getItem(LABELS_KEY + "_gridcolor") !== "off",
   pickMode: null,
   addingPoint: false,
   newPointDraft: { code: "", type: "air", gridId: "", lat: null, lon: null },
@@ -335,25 +346,50 @@ function addPointMarker(p) {
   var marker = L.circleMarker([p.lat, p.lon], { radius: 5.5, weight: 1.8 }).addTo(map);
   marker.on("click", function () { selectPoint(p.id); });
   marker.bindTooltip(p.id, { permanent: true, direction: "top", offset: [0, -6], className: "point-label-tip", interactive: false });
-  marker.bindPopup("", { closeButton: false, autoPan: false, className: "point-hover-popup", offset: [0, -6] });
+  marker.bindPopup("", { closeButton: false, autoPan: false, className: "point-hover-popup", offset: [0, -6], maxWidth: 220 });
   marker.on("mouseover", function () {
     marker.setPopupContent(pointHoverHtml(p.id));
     marker.openPopup();
+    hydratePopupPhotos(marker.getPopup());
   });
   marker.on("mouseout", function () { marker.closePopup(); });
   markerLayers[p.id] = marker;
 }
 
+function hydratePopupPhotos(popup) {
+  var node = popup && popup._contentNode;
+  if (!node) return;
+  var imgs = node.querySelectorAll("img[data-photo-id]");
+  for (var i = 0; i < imgs.length; i++) {
+    (function (img) {
+      var id = img.getAttribute("data-photo-id");
+      ensurePhotoUrl(id).then(function (url) { if (url) img.src = url; });
+    })(imgs[i]);
+  }
+}
+
 function pointHoverHtml(id) {
   var rb = repOf(id, "before"), ra = repOf(id, "after");
-  function line(label, r) {
+  function roundBlock(label, r) {
     var status = r.issue ? "Bermasalah" : (r.done ? "Selesai" : "Belum disampling");
     var statusClass = r.issue ? "ph-status-issue" : (r.done ? "ph-status-done" : "ph-status-pending");
     var mark = r.done && !r.issue ? "✓ " : "";
     var date = r.done && r.date ? " pada " + formatDateID(r.date) : "";
-    return esc(label) + ": <span class=\"" + statusClass + "\">" + mark + esc(status) + "</span>" + esc(date);
+    var html = '<div class="ph-round"><span class="ph-round-label">' + esc(label) + ':</span> ' +
+      '<span class="' + statusClass + '">' + mark + esc(status) + '</span>' + esc(date) + '</div>';
+    if (r.notes && r.notes.trim()) {
+      var note = r.notes.trim();
+      if (note.length > 90) note = note.slice(0, 90) + "…";
+      html += '<div class="ph-notes">' + esc(note) + '</div>';
+    }
+    if (r.photos && r.photos.length) {
+      var lastPhoto = r.photos[r.photos.length - 1];
+      html += '<div class="ph-photo"><img src="' + TRANSPARENT_PX + '" data-photo-id="' + esc(lastPhoto.id) + '" alt="Foto ' + esc(label) + '"/>' +
+        (r.photos.length > 1 ? '<span class="ph-photo-count">+' + (r.photos.length - 1) + '</span>' : '') + '</div>';
+    }
+    return html;
   }
-  return '<span class="ph-id">' + esc(id) + '</span>' + line("Before", rb) + '<br>' + line("After", ra);
+  return '<span class="ph-id">' + esc(id) + '</span>' + roundBlock("Before", rb) + roundBlock("After", ra);
 }
 
 /* Partial-progress grid fill: instead of an arbitrary left/right split,
@@ -463,7 +499,16 @@ function initMap() {
 
   GRIDS.forEach(function (g) {
     var poly = L.polygon(g.ring, { weight: 1.4, fillOpacity: 0.28 }).addTo(map);
-    poly.on("click", function () { selectGrid(g.id); });
+    poly.bindPopup("", { closeButton: true, className: "grid-info-popup" });
+    poly.on("click", function (e) {
+      selectGrid(g.id);
+      var stats = gridStats(g, state.round);
+      var html = '<div class="gp-title">' + esc(g.label) + '</div>' +
+        '<div class="gp-area">Luas area: ' + formatArea(GRID_AREA[g.id]) + '</div>' +
+        '<div class="gp-pct">' + Math.round(stats.pct * 100) + '% disampling (' + stats.done + ' dari ' + stats.total + ' titik)</div>';
+      poly.setPopupContent(html);
+      poly.openPopup(e.latlng);
+    });
     poly.bindTooltip(g.label, { permanent: true, direction: "center", className: "grid-label-tip", interactive: false });
     gridLayers[g.id] = poly;
     ensureGridPattern(g.id);
@@ -509,10 +554,11 @@ function updateMapStyles() {
     var isSel = state.selectedGridId === g.id && !state.selectedId;
     var showFill = state.showGridFill || isSel;
     var layer = gridLayers[g.id];
+    var strokeColor = state.showGridColors ? GRID_COLOR[g.id] : tier.stroke;
     layer.setStyle({
-      color: tier.stroke,
+      color: strokeColor,
       fillColor: tier.fill,
-      weight: isSel ? 3 : 1.4,
+      weight: isSel ? 3 : 1.6,
       fillOpacity: showFill ? (isSel ? 0.42 : 0.26) : 0
     });
     if (showFill && stats.pct > 0 && stats.pct < 1 && layer._path) {
@@ -520,22 +566,23 @@ function updateMapStyles() {
       if (patternRef) layer._path.setAttribute("fill", patternRef);
     }
     var pctLabel = Math.round(stats.pct * 100) + "%";
-    layer.setTooltipContent(esc(g.label) + '<span class="gl-pct">' + pctLabel + '</span>');
+    var swatch = state.showGridColors ? '<span class="gl-swatch" style="background:' + GRID_COLOR[g.id] + '"></span>' : '';
+    layer.setTooltipContent(swatch + esc(g.label) + '<span class="gl-pct">' + pctLabel + '</span>');
   });
 
   allPoints().forEach(function (p) {
     var r = repOf(p.id, round);
     var isSel = state.selectedId === p.id;
     var fill, stroke;
-    if (r.issue) { fill = COLORS.issue; stroke = COLORS.issueStroke; }
-    else if (r.done) { fill = COLORS.done; stroke = COLORS.doneStroke; }
+    if (r.issue) { fill = COLORS.issue; stroke = "#ffffff"; }
+    else if (r.done) { fill = COLORS.done; stroke = "#ffffff"; }
     else { fill = "#16212B"; stroke = COLORS.pending; }
     var match = matchesFilter(r) && (!q || p.id.toLowerCase().indexOf(q) !== -1);
     var layer = markerLayers[p.id];
     if (!layer) return;
     layer.setStyle({
       radius: isSel ? 9 : 5.5,
-      weight: isSel ? 3 : 1.8,
+      weight: isSel ? 3 : 2.1,
       color: stroke,
       fillColor: fill,
       fillOpacity: match ? 0.95 : 0.18,
@@ -970,6 +1017,8 @@ function applyLabelVisibility() {
   if (pointBtn) pointBtn.className = "labeltoggle" + (state.showPointLabels ? " active" : "");
   var fillBtn = document.getElementById("toggleGridFill");
   if (fillBtn) fillBtn.className = "labeltoggle" + (state.showGridFill ? " active" : "");
+  var colorBtn = document.getElementById("toggleGridColors");
+  if (colorBtn) colorBtn.className = "labeltoggle" + (state.showGridColors ? " active" : "");
 }
 function toggleGridLabels() {
   state.showGridLabels = !state.showGridLabels;
@@ -993,6 +1042,13 @@ function toggleGridFill() {
   localStorage.setItem(LABELS_KEY + "_fill", state.showGridFill ? "on" : "off");
   var btn = document.getElementById("toggleGridFill");
   if (btn) btn.className = "labeltoggle" + (state.showGridFill ? " active" : "");
+  updateMapStyles();
+}
+function toggleGridColors() {
+  state.showGridColors = !state.showGridColors;
+  localStorage.setItem(LABELS_KEY + "_gridcolor", state.showGridColors ? "on" : "off");
+  var btn = document.getElementById("toggleGridColors");
+  if (btn) btn.className = "labeltoggle" + (state.showGridColors ? " active" : "");
   updateMapStyles();
 }
 
@@ -1361,6 +1417,7 @@ function onAction(e) {
   else if (action === "toggle-grid-labels") toggleGridLabels();
   else if (action === "toggle-point-labels") togglePointLabels();
   else if (action === "toggle-grid-fill") toggleGridFill();
+  else if (action === "toggle-grid-colors") toggleGridColors();
   else if (action === "toggle-actual") toggleActual();
   else if (action === "toggle-fullscreen") toggleFullscreen();
   else if (action === "close-toast") { state.toast = null; renderToast(); }
