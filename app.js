@@ -13,16 +13,6 @@ GRIDS.forEach(function (g) { GRID_BY_ID[g.id] = g; });
 var POINT_BY_ID = {};
 POINTS.forEach(function (p) { POINT_BY_ID[p.id] = p; });
 
-/* A muted, distinct boundary color per grid (not tied to sampling
-   status), spaced with the golden angle so adjacent grids in the list
-   don't end up with similar hues. Used so grid outlines are easy to
-   tell apart on the map, independent from the progress fill. */
-var GRID_COLOR = {};
-GRIDS.forEach(function (g, idx) {
-  var hue = Math.round((idx * 137.508) % 360);
-  GRID_COLOR[g.id] = "hsl(" + hue + ", 42%, 56%)";
-});
-
 /* ---------------------------------------------------------------------
    Constants
 --------------------------------------------------------------------- */
@@ -251,7 +241,6 @@ var state = {
   showPointLabels: localStorage.getItem(LABELS_KEY + "_point") !== "off",
   showActual: localStorage.getItem(LABELS_KEY + "_actual") === "on",
   showGridFill: localStorage.getItem(LABELS_KEY + "_fill") !== "off",
-  showGridColors: localStorage.getItem(LABELS_KEY + "_gridcolor") !== "off",
   basemapOnly: localStorage.getItem(LABELS_KEY + "_basemaponly") === "on",
   pickMode: null,
   addingPoint: false,
@@ -340,7 +329,9 @@ var BASEMAP_ATTR = "Citra udara drone lapangan";
 // Corners read from the orthomosaic's embedded georeferencing (UTM zone 50S), reprojected to WGS84.
 var IMAGE_BOUNDS = [[-0.8597803, 117.2609098], [-0.8465768, 117.2760070]];
 var ACTUAL_FILL = "#2F6FED";
-var ACTUAL_STROKE = "#B8860B";
+var ACTUAL_PIN_SVG = '<svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">' +
+  '<path d="M13 0C5.8 0 0 5.8 0 13c0 9.5 13 21 13 21s13-11.5 13-21C26 5.8 20.2 0 13 0z" fill="' + ACTUAL_FILL + '" stroke="#ffffff" stroke-width="1.6"/>' +
+  '<circle cx="13" cy="13" r="5" fill="#ffffff"/></svg>';
 
 function allBounds() {
   var pts = allPoints().map(function (p) { return [p.lat, p.lon]; });
@@ -581,12 +572,10 @@ function updateMapStyles() {
     var isSel = state.selectedGridId === g.id && !state.selectedId;
     var showFill = state.showGridFill || isSel;
     var layer = gridLayers[g.id];
-    var strokeColor = state.showGridColors ? GRID_COLOR[g.id] : tier.stroke;
-    var baseFill = state.showGridColors ? GRID_COLOR[g.id] : tier.fill;
     var baseOpacity = stats.hatch > 0 ? 0.42 : 0.26;
     layer.setStyle({
-      color: strokeColor,
-      fillColor: baseFill,
+      color: tier.stroke,
+      fillColor: tier.fill,
       weight: isSel ? 3 : 1.6,
       fillOpacity: showFill ? (isSel ? 0.5 : baseOpacity) : 0
     });
@@ -596,8 +585,7 @@ function updateMapStyles() {
       if (patternRef) layer._path.setAttribute("fill", patternRef);
     }
     var pctLabel = Math.round(stats.pct * 100) + "%";
-    var swatch = state.showGridColors ? '<span class="gl-swatch" style="background:' + GRID_COLOR[g.id] + '"></span>' : '';
-    layer.setTooltipContent(swatch + esc(g.label) + '<span class="gl-pct">' + pctLabel + '</span>');
+    layer.setTooltipContent(esc(g.label) + '<span class="gl-pct">' + pctLabel + '</span>');
   });
 
   allPoints().forEach(function (p) {
@@ -635,7 +623,9 @@ function updateActualLayer() {
     var r = repOf(p.id, round);
     if (r.actualLat == null || r.actualLon == null) return;
     var line = L.polyline([[p.lat, p.lon], [r.actualLat, r.actualLon]], { color: ACTUAL_FILL, weight: 1.6, dashArray: "4,4", opacity: 0.85 });
-    var actualMarker = L.circleMarker([r.actualLat, r.actualLon], { radius: 6, weight: 2.5, color: ACTUAL_STROKE, fillColor: ACTUAL_FILL, fillOpacity: 1 });
+    var actualMarker = L.marker([r.actualLat, r.actualLon], {
+      icon: L.divIcon({ html: ACTUAL_PIN_SVG, className: "actual-pin", iconSize: [26, 34], iconAnchor: [13, 34] })
+    });
     actualMarker.on("click", function (e) {
       if (state.pickMode) { onMapClick(e); return; }
       selectPoint(p.id);
@@ -1109,8 +1099,6 @@ function applyLabelVisibility() {
   if (pointBtn) pointBtn.className = "labeltoggle" + (state.showPointLabels ? " active" : "");
   var fillBtn = document.getElementById("toggleGridFill");
   if (fillBtn) fillBtn.className = "labeltoggle" + (state.showGridFill ? " active" : "");
-  var colorBtn = document.getElementById("toggleGridColors");
-  if (colorBtn) colorBtn.className = "labeltoggle" + (state.showGridColors ? " active" : "");
   var mapSection = document.querySelector(".mapsection");
   if (mapSection) mapSection.classList.toggle("basemap-only", state.basemapOnly);
   var basemapBtn = document.getElementById("toggleBasemapOnly");
@@ -1138,13 +1126,6 @@ function toggleGridFill() {
   localStorage.setItem(LABELS_KEY + "_fill", state.showGridFill ? "on" : "off");
   var btn = document.getElementById("toggleGridFill");
   if (btn) btn.className = "labeltoggle" + (state.showGridFill ? " active" : "");
-  updateMapStyles();
-}
-function toggleGridColors() {
-  state.showGridColors = !state.showGridColors;
-  localStorage.setItem(LABELS_KEY + "_gridcolor", state.showGridColors ? "on" : "off");
-  var btn = document.getElementById("toggleGridColors");
-  if (btn) btn.className = "labeltoggle" + (state.showGridColors ? " active" : "");
   updateMapStyles();
 }
 function toggleBasemapOnly() {
@@ -1476,7 +1457,55 @@ function renderBottomPanel(gridStatsList) {
     '<p class="panel-sub">Diurutkan dari progres paling rendah pada tahap aktif. Klik salah satu area untuk melihat titik di dalamnya, atau klik langsung pada peta di atas.</p></div>' +
     '<button type="button" class="btn btn-primary" data-action="start-add-point">' + ICONS.plus + ' Tambah Titik</button>' +
     '</div>' +
-    '<div class="gridgrid">' + rows + '</div>';
+    '<div class="gridgrid">' + rows + '</div>' +
+    '<div class="panelhead-row" style="margin-top:26px;">' +
+    '<div><p class="panel-title">Rekap Data Titik</p>' +
+    '<p class="panel-sub">Seluruh titik sampling dalam bentuk angka, mengikuti pencarian dan filter status yang aktif di atas. Klik satu baris untuk membuka detail titik tersebut.</p></div>' +
+    '</div>' +
+    pointsTableHtml(round);
+}
+
+function pointsTableHtml(round) {
+  var q = (state.search || "").trim().toLowerCase();
+  var pts = allPoints().filter(function (p) {
+    var r = repOf(p.id, round);
+    return matchesFilter(r) && (!q || p.id.toLowerCase().indexOf(q) !== -1);
+  });
+
+  function statusCell(r) {
+    var cls = r.issue ? "tbl-badge tbl-issue" : (r.done ? "tbl-badge tbl-done" : "tbl-badge tbl-pending");
+    var label = r.issue ? "Bermasalah" : (r.done ? "Selesai" : "Belum");
+    var date = r.done && r.date ? '<span class="tbl-date">' + esc(formatDateID(r.date)) + '</span>' : "";
+    return '<span class="' + cls + '">' + esc(label) + '</span>' + date;
+  }
+
+  var body = pts.map(function (p) {
+    var g = GRID_BY_ID[p.gridId];
+    var rb = repOf(p.id, "before"), ra = repOf(p.id, "after");
+    var active = round === "before" ? rb : ra;
+    var ptype = SAMPLE_TYPES[pointType(p)];
+    var hasKendala = rb.issue || ra.issue || (rb.notes && rb.notes.trim()) || (ra.notes && ra.notes.trim());
+    return '<tr class="tbl-row" data-action="select-point" data-id="' + esc(p.id) + '">' +
+      '<td class="tbl-code">' + esc(p.id) + (p.custom ? ' <span class="tbl-custom">tambahan</span>' : '') + '</td>' +
+      '<td><span class="tbl-type" style="color:' + ptype.color + '">' + esc(ptype.label) + '</span></td>' +
+      '<td>' + esc(g ? g.label : "—") + '</td>' +
+      '<td>' + statusCell(rb) + '</td>' +
+      '<td>' + statusCell(ra) + '</td>' +
+      '<td class="tbl-center">' + (hasKendala ? '<span class="tbl-kendala-dot" title="Ada kendala tercatat"></span>' : '—') + '</td>' +
+      '<td class="tbl-personnel">' + (active.personnel ? esc(active.personnel) : '—') + '</td>' +
+      '</tr>';
+  }).join("");
+
+  var roundLabel = round === "before" ? "Before" : "After";
+  return '<div class="datatable-wrap">' +
+    '<table class="datatable">' +
+    '<thead><tr>' +
+    '<th>Kode Titik</th><th>Jenis</th><th>Grid</th><th>Before Recovery</th><th>After Recovery</th><th>Kendala</th><th>Personil (' + esc(roundLabel) + ')</th>' +
+    '</tr></thead>' +
+    '<tbody>' + (body || '<tr><td colspan="7" class="tbl-empty">Tidak ada titik yang cocok dengan pencarian atau filter aktif.</td></tr>') + '</tbody>' +
+    '</table>' +
+    '<p class="tbl-count">Menampilkan ' + pts.length + ' dari ' + allPoints().length + ' titik.</p>' +
+    '</div>';
 }
 
 function renderToast() {
@@ -1544,7 +1573,6 @@ function onAction(e) {
   else if (action === "toggle-grid-labels") toggleGridLabels();
   else if (action === "toggle-point-labels") togglePointLabels();
   else if (action === "toggle-grid-fill") toggleGridFill();
-  else if (action === "toggle-grid-colors") toggleGridColors();
   else if (action === "toggle-basemap-only") toggleBasemapOnly();
   else if (action === "toggle-actual") toggleActual();
   else if (action === "toggle-fullscreen") toggleFullscreen();
