@@ -223,6 +223,15 @@ function formatDateID(str) {
   return d + " " + MONTHS_ID[m] + " " + y;
 }
 
+function naturalCompare(a, b) {
+  var re = /(\d+)/;
+  var am = a.match(re), bm = b.match(re);
+  if (am && bm && a.slice(0, am.index) === b.slice(0, bm.index)) {
+    return parseInt(am[1], 10) - parseInt(bm[1], 10);
+  }
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 /* ---------------------------------------------------------------------
    State
 --------------------------------------------------------------------- */
@@ -242,6 +251,9 @@ var state = {
   showActual: localStorage.getItem(LABELS_KEY + "_actual") === "on",
   showGridFill: localStorage.getItem(LABELS_KEY + "_fill") !== "off",
   basemapOnly: localStorage.getItem(LABELS_KEY + "_basemaponly") === "on",
+  showDataTable: localStorage.getItem(LABELS_KEY + "_datatable") !== "off",
+  tableCollapsed: {},
+  tableExpandedRows: {},
   pickMode: null,
   addingPoint: false,
   newPointDraft: { code: "", type: "air", gridId: "", lat: null, lon: null },
@@ -902,6 +914,209 @@ function exportJson() {
 }
 
 /* ---------------------------------------------------------------------
+   Minimal XLSX writer: builds a valid .xlsx (a ZIP of a small OOXML
+   package) from scratch in the browser, with no external library and
+   no compression (the ZIP "stored" method, which is fully spec-legal
+   and keeps this dependency-free like the rest of the app).
+--------------------------------------------------------------------- */
+var CRC32_TABLE = (function () {
+  var t = [];
+  for (var n = 0; n < 256; n++) {
+    var c = n;
+    for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes) {
+  var crc = 0 ^ -1;
+  for (var i = 0; i < bytes.length; i++) crc = (crc >>> 8) ^ CRC32_TABLE[(crc ^ bytes[i]) & 0xFF];
+  return (crc ^ -1) >>> 0;
+}
+
+function buildZip(files) {
+  var localParts = [], centralParts = [];
+  var offset = 0;
+  var encoder = new TextEncoder();
+  files.forEach(function (f) {
+    var nameBytes = encoder.encode(f.name);
+    var data = f.data;
+    var crc = crc32(data);
+
+    var lh = new Uint8Array(30 + nameBytes.length);
+    var ldv = new DataView(lh.buffer);
+    ldv.setUint32(0, 0x04034b50, true);
+    ldv.setUint16(4, 20, true);
+    ldv.setUint16(6, 0, true);
+    ldv.setUint16(8, 0, true);
+    ldv.setUint16(10, 0, true);
+    ldv.setUint16(12, 0, true);
+    ldv.setUint32(14, crc, true);
+    ldv.setUint32(18, data.length, true);
+    ldv.setUint32(22, data.length, true);
+    ldv.setUint16(26, nameBytes.length, true);
+    ldv.setUint16(28, 0, true);
+    lh.set(nameBytes, 30);
+    localParts.push(lh, data);
+
+    var ch = new Uint8Array(46 + nameBytes.length);
+    var cdv = new DataView(ch.buffer);
+    cdv.setUint32(0, 0x02014b50, true);
+    cdv.setUint16(4, 20, true);
+    cdv.setUint16(6, 20, true);
+    cdv.setUint16(8, 0, true);
+    cdv.setUint16(10, 0, true);
+    cdv.setUint16(12, 0, true);
+    cdv.setUint16(14, 0, true);
+    cdv.setUint32(16, crc, true);
+    cdv.setUint32(20, data.length, true);
+    cdv.setUint32(24, data.length, true);
+    cdv.setUint16(28, nameBytes.length, true);
+    cdv.setUint16(30, 0, true);
+    cdv.setUint16(32, 0, true);
+    cdv.setUint16(34, 0, true);
+    cdv.setUint16(36, 0, true);
+    cdv.setUint32(38, 0, true);
+    cdv.setUint32(42, offset, true);
+    ch.set(nameBytes, 46);
+    centralParts.push(ch);
+
+    offset += lh.length + data.length;
+  });
+
+  var centralStart = offset;
+  var centralSize = centralParts.reduce(function (s, p) { return s + p.length; }, 0);
+
+  var eocd = new Uint8Array(22);
+  var edv = new DataView(eocd.buffer);
+  edv.setUint32(0, 0x06054b50, true);
+  edv.setUint16(8, files.length, true);
+  edv.setUint16(10, files.length, true);
+  edv.setUint32(12, centralSize, true);
+  edv.setUint32(16, centralStart, true);
+
+  return new Blob(localParts.concat(centralParts).concat([eocd]), { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+
+function xlsxColLetter(i) {
+  var s = "";
+  i++;
+  while (i > 0) {
+    var m = (i - 1) % 26;
+    s = String.fromCharCode(65 + m) + s;
+    i = Math.floor((i - 1) / 26);
+  }
+  return s;
+}
+function xlsxEscXml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+function xlsxWorksheetXml(rows) {
+  var xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+  rows.forEach(function (row, ri) {
+    xml += '<row r="' + (ri + 1) + '">';
+    row.forEach(function (cell, ci) {
+      var ref = xlsxColLetter(ci) + (ri + 1);
+      var style = ri === 0 ? ' s="1"' : "";
+      xml += '<c r="' + ref + '" t="inlineStr"' + style + '><is><t xml:space="preserve">' + xlsxEscXml(cell == null ? "" : cell) + '</t></is></c>';
+    });
+    xml += '</row>';
+  });
+  xml += '</sheetData></worksheet>';
+  return xml;
+}
+
+function buildXlsxBlob(sheetName, rows) {
+  var encoder = new TextEncoder();
+  var contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+    '<Default Extension="xml" ContentType="application/xml"/>' +
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+    '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+    '</Types>';
+  var rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+    '</Relationships>';
+  var workbookXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' +
+    '<sheets><sheet name="' + xlsxEscXml(sheetName) + '" sheetId="1" r:id="rId1"/></sheets></workbook>';
+  var workbookRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+    '</Relationships>';
+  var stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><sz val="11"/><name val="Calibri"/><b/></font></fonts>' +
+    '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+    '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>' +
+    '</styleSheet>';
+
+  var files = [
+    { name: "[Content_Types].xml", data: encoder.encode(contentTypes) },
+    { name: "_rels/.rels", data: encoder.encode(rootRels) },
+    { name: "xl/workbook.xml", data: encoder.encode(workbookXml) },
+    { name: "xl/_rels/workbook.xml.rels", data: encoder.encode(workbookRels) },
+    { name: "xl/styles.xml", data: encoder.encode(stylesXml) },
+    { name: "xl/worksheets/sheet1.xml", data: encoder.encode(xlsxWorksheetXml(rows)) }
+  ];
+  return buildZip(files);
+}
+
+function exportPointsExcel() {
+  var round = state.round;
+  var q = (state.search || "").trim().toLowerCase();
+  var pts = allPoints().filter(function (p) {
+    var r = repOf(p.id, round);
+    return matchesFilter(r) && (!q || p.id.toLowerCase().indexOf(q) !== -1);
+  });
+  pts = pts.slice().sort(function (a, b) {
+    var ta = TYPE_ORDER.indexOf(pointType(a)), tb = TYPE_ORDER.indexOf(pointType(b));
+    if (ta !== tb) return ta - tb;
+    var ga = (GRID_BY_ID[a.gridId] && GRID_BY_ID[a.gridId].label) || "Tanpa Grid";
+    var gb = (GRID_BY_ID[b.gridId] && GRID_BY_ID[b.gridId].label) || "Tanpa Grid";
+    if (ga !== gb) return naturalCompare(ga, gb);
+    return naturalCompare(a.id, b.id);
+  });
+
+  var header = ["Kode Titik", "Jenis", "Grid", "Status Before", "Tanggal Before", "Status After", "Tanggal After", "Kendala", "Jumlah Foto"];
+  var rows = [header];
+  pts.forEach(function (p) {
+    var g = GRID_BY_ID[p.gridId];
+    var rb = repOf(p.id, "before"), ra = repOf(p.id, "after");
+    var ptype = SAMPLE_TYPES[pointType(p)];
+    var hasKendala = rb.issue || ra.issue || (rb.notes && rb.notes.trim()) || (ra.notes && ra.notes.trim());
+    rows.push([
+      p.id,
+      ptype.label,
+      g ? g.label : "Tanpa Grid",
+      rb.issue ? "Bermasalah" : (rb.done ? "Selesai" : "Belum"),
+      rb.date ? formatDateID(rb.date) : "",
+      ra.issue ? "Bermasalah" : (ra.done ? "Selesai" : "Belum"),
+      ra.date ? formatDateID(ra.date) : "",
+      hasKendala ? "Ya" : "Tidak",
+      String((rb.photos ? rb.photos.length : 0) + (ra.photos ? ra.photos.length : 0))
+    ]);
+  });
+
+  if (pts.length === 0) {
+    showToast("warn", "Tidak ada titik yang cocok dengan pencarian atau filter aktif untuk diekspor.");
+    return;
+  }
+
+  var blob = buildXlsxBlob("Rekap Titik", rows);
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "rekap-titik-oilspill-" + new Date().toISOString().slice(0, 10) + ".xlsx";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  showToast("success", "Rekap data berhasil diekspor ke berkas Excel (" + pts.length + " titik).");
+}
+
+/* ---------------------------------------------------------------------
    Import and export
 --------------------------------------------------------------------- */
 function handleImportInput(e) {
@@ -1460,9 +1675,21 @@ function renderBottomPanel(gridStatsList) {
     '<div class="gridgrid">' + rows + '</div>' +
     '<div class="panelhead-row" style="margin-top:26px;">' +
     '<div><p class="panel-title">Rekap Data Titik</p>' +
-    '<p class="panel-sub">Seluruh titik sampling dalam bentuk angka, mengikuti pencarian dan filter status yang aktif di atas. Klik satu baris untuk membuka detail titik tersebut.</p></div>' +
+    '<p class="panel-sub">Seluruh titik sampling dikelompokkan per jenis dan grid, mengikuti pencarian dan filter status yang aktif di atas. Klik satu baris untuk pratinjau singkat.</p></div>' +
+    '<div class="tblhead-actions">' +
+    (state.showDataTable ? '<button type="button" class="btn" data-action="export-points-excel">' + ICONS.download + ' Ekspor Excel</button>' : '') +
+    '<button type="button" class="btn" data-action="toggle-datatable">' + (state.showDataTable ? 'Sembunyikan Tabel' : 'Tampilkan Tabel') + '</button>' +
     '</div>' +
-    pointsTableHtml(round);
+    '</div>' +
+    (state.showDataTable ? pointsTableHtml(round) : '');
+  if (state.showDataTable) hydrateGalleryImages();
+}
+
+var TYPE_ORDER = ["soil", "sedimen", "air"];
+
+function isGroupCollapsed(id, forceOpen) {
+  if (forceOpen) return false;
+  return state.tableCollapsed.hasOwnProperty(id) ? state.tableCollapsed[id] : true;
 }
 
 function pointsTableHtml(round) {
@@ -1471,6 +1698,7 @@ function pointsTableHtml(round) {
     var r = repOf(p.id, round);
     return matchesFilter(r) && (!q || p.id.toLowerCase().indexOf(q) !== -1);
   });
+  var searching = !!q;
 
   function statusCell(r) {
     var cls = r.issue ? "tbl-badge tbl-issue" : (r.done ? "tbl-badge tbl-done" : "tbl-badge tbl-pending");
@@ -1479,30 +1707,95 @@ function pointsTableHtml(round) {
     return '<span class="' + cls + '">' + esc(label) + '</span>' + date;
   }
 
-  var body = pts.map(function (p) {
-    var g = GRID_BY_ID[p.gridId];
+  function photoBadge(rb, ra) {
+    var total = (rb.photos ? rb.photos.length : 0) + (ra.photos ? ra.photos.length : 0);
+    if (!total) return "—";
+    return '<span class="tbl-photo-badge">' + ICONS.camera + ' ' + total + '</span>';
+  }
+
+  function miniRound(label, r) {
+    var status = r.issue ? "Bermasalah" : (r.done ? "Selesai" : "Belum disampling");
+    var date = r.done && r.date ? " • " + esc(formatDateID(r.date)) : "";
+    var note = (r.notes && r.notes.trim()) ? '<div class="tbl-expand-note">' + esc(r.notes.trim().slice(0, 140)) + (r.notes.trim().length > 140 ? "…" : "") + '</div>' : "";
+    return '<div class="tbl-expand-round"><b>' + esc(label) + ':</b> ' + esc(status) + date + '</div>' + note;
+  }
+
+  function chevron(collapsed) {
+    return '<span class="tbl-chevron' + (collapsed ? "" : " tbl-chevron-open") + '">' + ICONS.back + '</span>';
+  }
+
+  function rowHtml(p) {
     var rb = repOf(p.id, "before"), ra = repOf(p.id, "after");
-    var active = round === "before" ? rb : ra;
-    var ptype = SAMPLE_TYPES[pointType(p)];
-    var hasKendala = rb.issue || ra.issue || (rb.notes && rb.notes.trim()) || (ra.notes && ra.notes.trim());
-    return '<tr class="tbl-row" data-action="select-point" data-id="' + esc(p.id) + '">' +
+    var expanded = !!state.tableExpandedRows[p.id];
+    var html = '<tr class="tbl-row' + (expanded ? " tbl-row-active" : "") + '" data-action="toggle-row-expand" data-id="' + esc(p.id) + '">' +
       '<td class="tbl-code">' + esc(p.id) + (p.custom ? ' <span class="tbl-custom">tambahan</span>' : '') + '</td>' +
-      '<td><span class="tbl-type" style="color:' + ptype.color + '">' + esc(ptype.label) + '</span></td>' +
-      '<td>' + esc(g ? g.label : "—") + '</td>' +
       '<td>' + statusCell(rb) + '</td>' +
       '<td>' + statusCell(ra) + '</td>' +
-      '<td class="tbl-center">' + (hasKendala ? '<span class="tbl-kendala-dot" title="Ada kendala tercatat"></span>' : '—') + '</td>' +
-      '<td class="tbl-personnel">' + (active.personnel ? esc(active.personnel) : '—') + '</td>' +
+      '<td class="tbl-center">' + (rb.issue || ra.issue || (rb.notes && rb.notes.trim()) || (ra.notes && ra.notes.trim()) ? '<span class="tbl-kendala-dot" title="Ada kendala tercatat"></span>' : '—') + '</td>' +
+      '<td class="tbl-center">' + photoBadge(rb, ra) + '</td>' +
       '</tr>';
-  }).join("");
+    if (expanded) {
+      var photos = (rb.photos || []).map(function (ph) { return { ph: ph, label: "Before" }; })
+        .concat((ra.photos || []).map(function (ph) { return { ph: ph, label: "After" }; }));
+      var photosHtml = photos.length ? photos.slice(0, 6).map(function (x) {
+        return '<img src="' + TRANSPARENT_PX + '" data-photo-id="' + esc(x.ph.id) + '" class="tbl-expand-thumb" alt="Foto ' + esc(x.label) + '"/>';
+      }).join("") : '<span class="tbl-expand-nofoto">Belum ada foto.</span>';
+      html += '<tr class="tbl-expand-row"><td colspan="5"><div class="tbl-expand-content">' +
+        '<div class="tbl-expand-info">' + miniRound("Before Recovery", rb) + miniRound("After Recovery", ra) + '</div>' +
+        '<div class="tbl-expand-photos">' + photosHtml + '</div>' +
+        '<div class="tbl-expand-actions">' +
+        '<button type="button" class="btn btn-primary" data-action="select-point" data-id="' + esc(p.id) + '">Lihat Detail</button>' +
+        '<button type="button" class="btn" data-action="focus-point-map" data-id="' + esc(p.id) + '">' + ICONS.pin + ' Lihat di Peta</button>' +
+        '</div></div></td></tr>';
+    }
+    return html;
+  }
 
-  var roundLabel = round === "before" ? "Before" : "After";
+  function subgroupHtml(typeKey, gridKey, gridLabel, subPts) {
+    var subId = "t:" + typeKey + ":g:" + gridKey;
+    var collapsed = isGroupCollapsed(subId, searching);
+    var doneCount = subPts.filter(function (p) { return repOf(p.id, round).done; }).length;
+    var html = '<tr class="tbl-subgroup-head" data-action="toggle-tbl-group" data-id="' + esc(subId) + '">' +
+      '<td colspan="5">' + chevron(collapsed) + esc(gridLabel) +
+      '<span class="tbl-group-count">' + subPts.length + ' titik · ' + doneCount + ' selesai</span></td></tr>';
+    if (!collapsed) html += subPts.map(rowHtml).join("");
+    return html;
+  }
+
+  function typeSectionHtml(typeKey) {
+    var typePts = pts.filter(function (p) { return pointType(p) === typeKey; });
+    if (!typePts.length) return "";
+    var typeId = "t:" + typeKey;
+    var collapsed = isGroupCollapsed(typeId, searching);
+    var typeInfo = SAMPLE_TYPES[typeKey];
+    var doneCount = typePts.filter(function (p) { return repOf(p.id, round).done; }).length;
+    var html = '<tr class="tbl-group-head" data-action="toggle-tbl-group" data-id="' + esc(typeId) + '">' +
+      '<td colspan="5">' + chevron(collapsed) +
+      '<span class="tbl-group-label" style="color:' + typeInfo.color + '">' + esc(typeInfo.label) + '</span>' +
+      '<span class="tbl-group-count">' + typePts.length + ' titik · ' + doneCount + ' selesai</span></td></tr>';
+    if (!collapsed) {
+      var byGrid = {};
+      var gridOrder = [];
+      typePts.forEach(function (p) {
+        var g = GRID_BY_ID[p.gridId];
+        var key = g ? g.id : "none";
+        if (!byGrid[key]) { byGrid[key] = { label: g ? g.label : "Tanpa Grid", pts: [] }; gridOrder.push(key); }
+        byGrid[key].pts.push(p);
+      });
+      gridOrder.sort(function (a, b) { return naturalCompare(byGrid[a].label, byGrid[b].label); });
+      html += gridOrder.map(function (key) { return subgroupHtml(typeKey, key, byGrid[key].label, byGrid[key].pts); }).join("");
+    }
+    return html;
+  }
+
+  var body = TYPE_ORDER.map(typeSectionHtml).join("");
+
   return '<div class="datatable-wrap">' +
     '<table class="datatable">' +
     '<thead><tr>' +
-    '<th>Kode Titik</th><th>Jenis</th><th>Grid</th><th>Before Recovery</th><th>After Recovery</th><th>Kendala</th><th>Personil (' + esc(roundLabel) + ')</th>' +
+    '<th>Kode Titik</th><th>Before Recovery</th><th>After Recovery</th><th>Kendala</th><th>Foto</th>' +
     '</tr></thead>' +
-    '<tbody>' + (body || '<tr><td colspan="7" class="tbl-empty">Tidak ada titik yang cocok dengan pencarian atau filter aktif.</td></tr>') + '</tbody>' +
+    '<tbody>' + (body || '<tr><td colspan="5" class="tbl-empty">Tidak ada titik yang cocok dengan pencarian atau filter aktif.</td></tr>') + '</tbody>' +
     '</table>' +
     '<p class="tbl-count">Menampilkan ' + pts.length + ' dari ' + allPoints().length + ' titik.</p>' +
     '</div>';
@@ -1574,6 +1867,26 @@ function onAction(e) {
   else if (action === "toggle-point-labels") togglePointLabels();
   else if (action === "toggle-grid-fill") toggleGridFill();
   else if (action === "toggle-basemap-only") toggleBasemapOnly();
+  else if (action === "toggle-datatable") {
+    state.showDataTable = !state.showDataTable;
+    localStorage.setItem(LABELS_KEY + "_datatable", state.showDataTable ? "on" : "off");
+    render();
+  }
+  else if (action === "toggle-tbl-group") {
+    var gid = el.getAttribute("data-id");
+    state.tableCollapsed[gid] = !isGroupCollapsed(gid);
+    render();
+  }
+  else if (action === "toggle-row-expand") {
+    state.tableExpandedRows[id] = !state.tableExpandedRows[id];
+    render();
+  }
+  else if (action === "focus-point-map") {
+    focusPoint(id);
+    var ms = document.querySelector(".mapsection");
+    if (ms) ms.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  else if (action === "export-points-excel") exportPointsExcel();
   else if (action === "toggle-actual") toggleActual();
   else if (action === "toggle-fullscreen") toggleFullscreen();
   else if (action === "close-toast") { state.toast = null; renderToast(); }
