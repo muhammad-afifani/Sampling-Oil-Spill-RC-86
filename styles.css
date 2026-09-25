@@ -168,6 +168,11 @@ a{color:var(--teal-text);text-decoration:none;}
 .point-label-tip::before{display:none;}
 #map.hide-grid-labels .grid-label-tip{display:none;}
 #map.hide-point-labels .point-label-tip{display:none;}
+.mapsection.basemap-only .legend{display:none;}
+.mapsection.basemap-only #map .leaflet-overlay-pane svg,
+.mapsection.basemap-only #map .leaflet-tooltip-pane,
+.mapsection.basemap-only #map .leaflet-popup-pane,
+.mapsection.basemap-only #map .leaflet-marker-pane{display:none;}
 
 .point-hover-popup .leaflet-popup-content-wrapper{background:rgba(10,17,22,0.92);color:#EDF3F5;border-radius:9px;box-shadow:0 10px 24px rgba(0,0,0,0.4);}
 .point-hover-popup .leaflet-popup-tip{background:rgba(10,17,22,0.92);}

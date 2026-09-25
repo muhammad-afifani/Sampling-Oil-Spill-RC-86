@@ -252,6 +252,7 @@ var state = {
   showActual: localStorage.getItem(LABELS_KEY + "_actual") === "on",
   showGridFill: localStorage.getItem(LABELS_KEY + "_fill") !== "off",
   showGridColors: localStorage.getItem(LABELS_KEY + "_gridcolor") !== "off",
+  basemapOnly: localStorage.getItem(LABELS_KEY + "_basemaponly") === "on",
   pickMode: null,
   addingPoint: false,
   newPointDraft: { code: "", type: "air", gridId: "", lat: null, lon: null },
@@ -338,7 +339,8 @@ var BASEMAP_URL = "assets/basemap-drone.jpg";
 var BASEMAP_ATTR = "Citra udara drone lapangan";
 // Corners read from the orthomosaic's embedded georeferencing (UTM zone 50S), reprojected to WGS84.
 var IMAGE_BOUNDS = [[-0.8597803, 117.2609098], [-0.8465768, 117.2760070]];
-var ACTUAL_COLOR = "#B78CE8";
+var ACTUAL_FILL = "#2F6FED";
+var ACTUAL_STROKE = "#B8860B";
 
 function allBounds() {
   var pts = allPoints().map(function (p) { return [p.lat, p.lon]; });
@@ -347,7 +349,10 @@ function allBounds() {
 
 function addPointMarker(p) {
   var marker = L.circleMarker([p.lat, p.lon], { radius: 5.5, weight: 1.8 }).addTo(map);
-  marker.on("click", function () { selectPoint(p.id); });
+  marker.on("click", function (e) {
+    if (state.pickMode) { onMapClick(e); return; }
+    selectPoint(p.id);
+  });
   marker.bindTooltip(p.id, { permanent: true, direction: "top", offset: [0, -6], className: "point-label-tip", interactive: false });
   marker.bindPopup("", { closeButton: false, autoPan: false, className: "point-hover-popup", offset: [0, -6], maxWidth: 240 });
   marker.on("mouseover", function () {
@@ -521,6 +526,7 @@ function initMap() {
     var poly = L.polygon(g.ring, { weight: 1.4, fillOpacity: 0.28 }).addTo(map);
     poly.bindPopup("", { closeButton: true, className: "grid-info-popup" });
     poly.on("click", function (e) {
+      if (state.pickMode) { onMapClick(e); return; }
       selectGrid(g.id);
       var stats = gridStats(g, state.round);
       var html = '<div class="gp-title">' + esc(g.label) + '</div>' +
@@ -576,10 +582,11 @@ function updateMapStyles() {
     var showFill = state.showGridFill || isSel;
     var layer = gridLayers[g.id];
     var strokeColor = state.showGridColors ? GRID_COLOR[g.id] : tier.stroke;
+    var baseFill = state.showGridColors ? GRID_COLOR[g.id] : tier.fill;
     var baseOpacity = stats.hatch > 0 ? 0.42 : 0.26;
     layer.setStyle({
       color: strokeColor,
-      fillColor: tier.fill,
+      fillColor: baseFill,
       weight: isSel ? 3 : 1.6,
       fillOpacity: showFill ? (isSel ? 0.5 : baseOpacity) : 0
     });
@@ -627,9 +634,12 @@ function updateActualLayer() {
   allPoints().forEach(function (p) {
     var r = repOf(p.id, round);
     if (r.actualLat == null || r.actualLon == null) return;
-    var line = L.polyline([[p.lat, p.lon], [r.actualLat, r.actualLon]], { color: ACTUAL_COLOR, weight: 1.6, dashArray: "4,4", opacity: 0.85 });
-    var actualMarker = L.circleMarker([r.actualLat, r.actualLon], { radius: 5, weight: 2, color: ACTUAL_COLOR, fillColor: "#ffffff", fillOpacity: 1 });
-    actualMarker.on("click", function () { selectPoint(p.id); });
+    var line = L.polyline([[p.lat, p.lon], [r.actualLat, r.actualLon]], { color: ACTUAL_FILL, weight: 1.6, dashArray: "4,4", opacity: 0.85 });
+    var actualMarker = L.circleMarker([r.actualLat, r.actualLon], { radius: 6, weight: 2.5, color: ACTUAL_STROKE, fillColor: ACTUAL_FILL, fillOpacity: 1 });
+    actualMarker.on("click", function (e) {
+      if (state.pickMode) { onMapClick(e); return; }
+      selectPoint(p.id);
+    });
     actualMarker.bindTooltip(p.id + " (aktual)", { className: "point-label-tip", direction: "bottom", offset: [0, 6] });
     line.addTo(actualLayer);
     actualMarker.addTo(actualLayer);
@@ -1101,6 +1111,10 @@ function applyLabelVisibility() {
   if (fillBtn) fillBtn.className = "labeltoggle" + (state.showGridFill ? " active" : "");
   var colorBtn = document.getElementById("toggleGridColors");
   if (colorBtn) colorBtn.className = "labeltoggle" + (state.showGridColors ? " active" : "");
+  var mapSection = document.querySelector(".mapsection");
+  if (mapSection) mapSection.classList.toggle("basemap-only", state.basemapOnly);
+  var basemapBtn = document.getElementById("toggleBasemapOnly");
+  if (basemapBtn) basemapBtn.className = "labeltoggle" + (state.basemapOnly ? " active" : "");
 }
 function toggleGridLabels() {
   state.showGridLabels = !state.showGridLabels;
@@ -1132,6 +1146,11 @@ function toggleGridColors() {
   var btn = document.getElementById("toggleGridColors");
   if (btn) btn.className = "labeltoggle" + (state.showGridColors ? " active" : "");
   updateMapStyles();
+}
+function toggleBasemapOnly() {
+  state.basemapOnly = !state.basemapOnly;
+  localStorage.setItem(LABELS_KEY + "_basemaponly", state.basemapOnly ? "on" : "off");
+  applyLabelVisibility();
 }
 
 /* ---------------------------------------------------------------------
@@ -1491,7 +1510,7 @@ function renderAbout() {
     '<div class="aboutcard">' +
     '<button type="button" class="lightbox-close" data-action="close-about" aria-label="Tutup">' + ICONS.close + '</button>' +
     '<img src="assets/team-photo.webp" class="about-photo" alt="Tim di balik pengembangan tools ini"/>' +
-    '<p class="about-caption">Tools ini dibuat dan terus dikembangkan secara mandiri oleh tim lapangan.</p>' +
+    '<p class="about-caption">Tools ini dibuat dan terus dikembangkan secara mandiri oleh Tim ENV BPN &amp; HCA.</p>' +
     '<p class="about-support">Mohon dukungan dana untuk kelanjutan update, progres, dan pengembangan tools ini.</p>' +
     '<button type="button" class="about-qrisbtn" data-action="open-qris">' +
     '<img src="assets/qris-support.jpg" class="about-qris-thumb" alt="QRIS dukungan"/>' +
@@ -1526,6 +1545,7 @@ function onAction(e) {
   else if (action === "toggle-point-labels") togglePointLabels();
   else if (action === "toggle-grid-fill") toggleGridFill();
   else if (action === "toggle-grid-colors") toggleGridColors();
+  else if (action === "toggle-basemap-only") toggleBasemapOnly();
   else if (action === "toggle-actual") toggleActual();
   else if (action === "toggle-fullscreen") toggleFullscreen();
   else if (action === "close-toast") { state.toast = null; renderToast(); }
