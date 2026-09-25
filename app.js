@@ -1117,6 +1117,331 @@ function exportPointsExcel() {
 }
 
 /* ---------------------------------------------------------------------
+   Minimal QR code encoder (ISO/IEC 18004), byte mode only, automatic
+   version selection within versions 1-10 at error-correction level M.
+   Used to print a scannable link to this app on the exported PDF map,
+   without depending on any external library or network request.
+--------------------------------------------------------------------- */
+var qrEncodeMatrix = (function () {
+  var BLOCK_INFO_M = {
+    1: [10, 1, 16, 0, 0], 2: [16, 1, 28, 0, 0], 3: [26, 1, 44, 0, 0],
+    4: [18, 2, 32, 0, 0], 5: [24, 2, 43, 0, 0], 6: [16, 4, 27, 0, 0],
+    7: [18, 4, 31, 0, 0], 8: [22, 2, 38, 2, 39], 9: [22, 3, 36, 2, 37],
+    10: [26, 4, 43, 1, 44]
+  };
+  var ALIGNMENT = {
+    1: [], 2: [6, 18], 3: [6, 22], 4: [6, 26], 5: [6, 30], 6: [6, 34],
+    7: [6, 22, 38], 8: [6, 24, 42], 9: [6, 26, 46], 10: [6, 28, 50]
+  };
+
+  function dataCodewordsFor(v) {
+    var b = BLOCK_INFO_M[v];
+    return b[1] * b[2] + b[3] * b[4];
+  }
+
+  var GF_EXP = new Array(512);
+  var GF_LOG = new Array(256);
+  (function () {
+    var x = 1;
+    for (var i = 0; i < 255; i++) {
+      GF_EXP[i] = x;
+      GF_LOG[x] = i;
+      x = x << 1;
+      if (x & 0x100) x ^= 0x11d;
+    }
+    for (var j = 255; j < 512; j++) GF_EXP[j] = GF_EXP[j - 255];
+  })();
+  function gfMul(a, b) {
+    if (a === 0 || b === 0) return 0;
+    return GF_EXP[GF_LOG[a] + GF_LOG[b]];
+  }
+  function rsGeneratorPoly(degree) {
+    var poly = [1];
+    for (var i = 0; i < degree; i++) {
+      var next = new Array(poly.length + 1).fill(0);
+      for (var j = 0; j < poly.length; j++) {
+        next[j] ^= poly[j];
+        next[j + 1] ^= gfMul(poly[j], GF_EXP[i]);
+      }
+      poly = next;
+    }
+    return poly;
+  }
+  function rsEncode(dataBytes, ecLen) {
+    var gen = rsGeneratorPoly(ecLen);
+    var res = dataBytes.concat(new Array(ecLen).fill(0));
+    for (var i = 0; i < dataBytes.length; i++) {
+      var coef = res[i];
+      if (coef === 0) continue;
+      for (var j = 0; j < gen.length; j++) res[i + j] ^= gfMul(gen[j], coef);
+    }
+    return res.slice(dataBytes.length);
+  }
+
+  function BitBuf() { this.bits = []; }
+  BitBuf.prototype.push = function (val, len) {
+    for (var i = len - 1; i >= 0; i--) this.bits.push((val >>> i) & 1);
+  };
+
+  function pickVersion(text) {
+    var byteLen = unescape(encodeURIComponent(text)).length;
+    var neededBits = 4 + 8 + byteLen * 8;
+    for (var v = 1; v <= 10; v++) {
+      if (neededBits <= dataCodewordsFor(v) * 8) return v;
+    }
+    throw new Error("QR text too long");
+  }
+
+  function buildCodewords(text, version) {
+    var utf8 = unescape(encodeURIComponent(text));
+    var bytes = [];
+    for (var i = 0; i < utf8.length; i++) bytes.push(utf8.charCodeAt(i) & 0xff);
+
+    var bb = new BitBuf();
+    bb.push(0x4, 4);
+    bb.push(bytes.length, 8);
+    for (var k = 0; k < bytes.length; k++) bb.push(bytes[k], 8);
+
+    var totalDataBits = dataCodewordsFor(version) * 8;
+    var termLen = Math.min(4, totalDataBits - bb.bits.length);
+    if (termLen > 0) bb.push(0, termLen);
+    while (bb.bits.length % 8 !== 0) bb.bits.push(0);
+
+    var padBytes = [0xec, 0x11], pi = 0;
+    while (bb.bits.length < totalDataBits) { bb.push(padBytes[pi % 2], 8); pi++; }
+
+    var dataCw = [];
+    for (var b = 0; b < bb.bits.length; b += 8) {
+      var v = 0;
+      for (var bi = 0; bi < 8; bi++) v = (v << 1) | bb.bits[b + bi];
+      dataCw.push(v);
+    }
+    return dataCw;
+  }
+
+  function interleave(dataCw, version) {
+    var info = BLOCK_INFO_M[version];
+    var ecLen = info[0], g1n = info[1], g1len = info[2], g2n = info[3], g2len = info[4];
+    var blocks = [], idx = 0;
+    for (var i = 0; i < g1n; i++) { blocks.push(dataCw.slice(idx, idx + g1len)); idx += g1len; }
+    for (var j = 0; j < g2n; j++) { blocks.push(dataCw.slice(idx, idx + g2len)); idx += g2len; }
+    var ecBlocks = blocks.map(function (blk) { return rsEncode(blk, ecLen); });
+
+    var result = [];
+    var maxDataLen = Math.max(g1len, g2len);
+    for (var c = 0; c < maxDataLen; c++) {
+      for (var bIdx = 0; bIdx < blocks.length; bIdx++) if (c < blocks[bIdx].length) result.push(blocks[bIdx][c]);
+    }
+    for (var ec = 0; ec < ecLen; ec++) {
+      for (var bIdx2 = 0; bIdx2 < ecBlocks.length; bIdx2++) result.push(ecBlocks[bIdx2][ec]);
+    }
+    return result;
+  }
+
+  function makeMatrix(version) {
+    var size = 17 + 4 * version;
+    var m = [], isFunc = [];
+    for (var r = 0; r < size; r++) { m.push(new Array(size).fill(0)); isFunc.push(new Array(size).fill(false)); }
+    function set(r, c, val) {
+      if (r >= 0 && r < size && c >= 0 && c < size) { m[r][c] = val; isFunc[r][c] = true; }
+    }
+    function setFinder(r0, c0) {
+      for (var r = -1; r <= 7; r++) {
+        for (var c = -1; c <= 7; c++) {
+          var rr = r0 + r, cc = c0 + c;
+          if (rr < 0 || cc < 0 || rr >= size || cc >= size) continue;
+          var onRing = (r === -1 || r === 7 || c === -1 || c === 7);
+          var dark;
+          if (onRing) dark = 0;
+          else if (r >= 0 && r <= 6 && c >= 0 && c <= 6 && (r === 0 || r === 6 || c === 0 || c === 6)) dark = 1;
+          else if (r >= 2 && r <= 4 && c >= 2 && c <= 4) dark = 1;
+          else dark = 0;
+          set(rr, cc, dark);
+        }
+      }
+    }
+    setFinder(0, 0);
+    setFinder(0, size - 7);
+    setFinder(size - 7, 0);
+
+    for (var i = 0; i < size; i++) {
+      if (!isFunc[6][i]) set(6, i, i % 2 === 0 ? 1 : 0);
+      if (!isFunc[i][6]) set(i, 6, i % 2 === 0 ? 1 : 0);
+    }
+
+    var align = ALIGNMENT[version];
+    for (var ai = 0; ai < align.length; ai++) {
+      for (var aj = 0; aj < align.length; aj++) {
+        var cr = align[ai], cc2 = align[aj];
+        if (isFunc[cr][cc2]) continue;
+        for (var dr = -2; dr <= 2; dr++) {
+          for (var dc = -2; dc <= 2; dc++) {
+            set(cr + dr, cc2 + dc, (Math.max(Math.abs(dr), Math.abs(dc)) !== 1) ? 1 : 0);
+          }
+        }
+      }
+    }
+
+    set(size - 8, 8, 1);
+    for (var f = 0; f <= 8; f++) { if (f !== 6) { set(8, f, 0); set(f, 8, 0); } }
+    for (var f2 = 0; f2 < 8; f2++) { set(size - 1 - f2, 8, 0); set(8, size - 1 - f2, 0); }
+    set(8, 8, 0);
+
+    return { size: size, m: m, isFunc: isFunc };
+  }
+
+  function placeData(mat, codewords) {
+    var size = mat.size, m = mat.m, isFunc = mat.isFunc;
+    var bits = [];
+    for (var i = 0; i < codewords.length; i++) for (var b = 7; b >= 0; b--) bits.push((codewords[i] >>> b) & 1);
+    var bitIdx = 0, col = size - 1, dir = -1;
+    while (col > 0) {
+      if (col === 6) col--;
+      for (var rowStep = 0; rowStep < size; rowStep++) {
+        var row = dir === -1 ? size - 1 - rowStep : rowStep;
+        for (var cOff = 0; cOff < 2; cOff++) {
+          var c = col - cOff;
+          if (isFunc[row][c]) continue;
+          m[row][c] = bitIdx < bits.length ? bits[bitIdx] : 0;
+          bitIdx++;
+        }
+      }
+      col -= 2;
+      dir = -dir;
+    }
+  }
+
+  function maskFn(idx, r, c) {
+    switch (idx) {
+      case 0: return (r + c) % 2 === 0;
+      case 1: return r % 2 === 0;
+      case 2: return c % 3 === 0;
+      case 3: return (r + c) % 3 === 0;
+      case 4: return (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0;
+      case 5: return (r * c) % 2 + (r * c) % 3 === 0;
+      case 6: return ((r * c) % 2 + (r * c) % 3) % 2 === 0;
+      case 7: return ((r + c) % 2 + (r * c) % 3) % 2 === 0;
+    }
+  }
+  function applyMask(mat, maskIdx) {
+    var size = mat.size, out = [];
+    for (var r = 0; r < size; r++) {
+      out.push(mat.m[r].slice());
+      for (var c = 0; c < size; c++) if (!mat.isFunc[r][c] && maskFn(maskIdx, r, c)) out[r][c] ^= 1;
+    }
+    return out;
+  }
+
+  function penalty(grid) {
+    var size = grid.length, total = 0;
+    for (var r = 0; r < size; r++) {
+      var runLen = 1;
+      for (var c = 1; c < size; c++) {
+        if (grid[r][c] === grid[r][c - 1]) runLen++;
+        else { if (runLen >= 5) total += 3 + (runLen - 5); runLen = 1; }
+      }
+      if (runLen >= 5) total += 3 + (runLen - 5);
+    }
+    for (var c2 = 0; c2 < size; c2++) {
+      var runLen2 = 1;
+      for (var r2 = 1; r2 < size; r2++) {
+        if (grid[r2][c2] === grid[r2 - 1][c2]) runLen2++;
+        else { if (runLen2 >= 5) total += 3 + (runLen2 - 5); runLen2 = 1; }
+      }
+      if (runLen2 >= 5) total += 3 + (runLen2 - 5);
+    }
+    for (var r3 = 0; r3 < size - 1; r3++) {
+      for (var c3 = 0; c3 < size - 1; c3++) {
+        var v = grid[r3][c3];
+        if (v === grid[r3][c3 + 1] && v === grid[r3 + 1][c3] && v === grid[r3 + 1][c3 + 1]) total += 3;
+      }
+    }
+    var patt1 = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0];
+    var patt2 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1];
+    function matchAt(arr, patt) {
+      for (var k = 0; k < patt.length; k++) if (arr[k] !== patt[k]) return false;
+      return true;
+    }
+    for (var r4 = 0; r4 < size; r4++) {
+      for (var c4 = 0; c4 <= size - 11; c4++) {
+        var rowArr = grid[r4].slice(c4, c4 + 11);
+        if (matchAt(rowArr, patt1) || matchAt(rowArr, patt2)) total += 40;
+      }
+    }
+    for (var c5 = 0; c5 < size; c5++) {
+      for (var r5 = 0; r5 <= size - 11; r5++) {
+        var colArr = [];
+        for (var k2 = 0; k2 < 11; k2++) colArr.push(grid[r5 + k2][c5]);
+        if (matchAt(colArr, patt1) || matchAt(colArr, patt2)) total += 40;
+      }
+    }
+    var dark = 0;
+    for (var r6 = 0; r6 < size; r6++) for (var c6 = 0; c6 < size; c6++) if (grid[r6][c6]) dark++;
+    var pct = (dark * 100) / (size * size);
+    total += Math.floor(Math.abs(pct - 50) / 5) * 10;
+    return total;
+  }
+
+  function bch15(data5) {
+    var g = 0x537;
+    var msb = function (x) { var n = 0; while (x) { x >>= 1; n++; } return n; };
+    var val = data5 << 10;
+    while (val >= 1024) val ^= g << (msb(val) - msb(g));
+    return (data5 << 10) | val;
+  }
+  var FORMAT_MASK = 0x5412;
+
+  function placeFormat(grid, size, maskIdx) {
+    var data = (0 << 3) | maskIdx; // ECC level M = 0b00
+    var bits15 = bch15(data) ^ FORMAT_MASK;
+    function bit(i) { return (bits15 >>> i) & 1; }
+    var order1 = [[0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 8], [7, 8], [8, 8], [8, 7], [8, 5], [8, 4], [8, 3], [8, 2], [8, 1], [8, 0]];
+    for (var i = 0; i < 15; i++) grid[order1[i][0]][order1[i][1]] = bit(14 - i);
+    var order2 = [];
+    for (var r = size - 1; r >= size - 7; r--) order2.push([r, 8]);
+    order2.push([8, size - 8]);
+    for (var c = size - 7; c < size; c++) order2.push([8, c]);
+    for (var j = 0; j < 15; j++) grid[order2[j][0]][order2[j][1]] = bit(14 - j);
+  }
+
+  return function qrEncodeMatrix(text) {
+    var version = pickVersion(text);
+    var dataCw = buildCodewords(text, version);
+    var allCw = interleave(dataCw, version);
+    var mat = makeMatrix(version);
+    placeData(mat, allCw);
+
+    var best = null, bestScore = Infinity, bestIdx = 0;
+    for (var mi = 0; mi < 8; mi++) {
+      var masked = applyMask(mat, mi);
+      var score = penalty(masked);
+      if (score < bestScore) { bestScore = score; best = masked; bestIdx = mi; }
+    }
+    placeFormat(best, mat.size, bestIdx);
+    return { size: mat.size, grid: best };
+  };
+})();
+
+function buildQrSvg(text, sizeMm) {
+  var res = qrEncodeMatrix(text);
+  var quiet = 4;
+  var dim = res.size + quiet * 2;
+  var scale = sizeMm / dim;
+  var parts = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + sizeMm + ' ' + sizeMm + '" width="' + sizeMm + 'mm" height="' + sizeMm + 'mm" shape-rendering="crispEdges">'];
+  parts.push('<rect x="0" y="0" width="' + sizeMm + '" height="' + sizeMm + '" fill="#fff"/>');
+  for (var r = 0; r < res.size; r++) {
+    for (var c = 0; c < res.size; c++) {
+      if (res.grid[r][c]) {
+        var x = (c + quiet) * scale, y = (r + quiet) * scale;
+        parts.push('<rect x="' + x.toFixed(3) + '" y="' + y.toFixed(3) + '" width="' + scale.toFixed(3) + '" height="' + scale.toFixed(3) + '" fill="#111"/>');
+      }
+    }
+  }
+  parts.push('</svg>');
+  return parts.join("");
+}
+
+/* ---------------------------------------------------------------------
    Map PDF export: builds a print-only "peta titik sampling" sheet
    (map + legend + coordinate info + title block) and hands it to the
    browser's own print dialog, so "Save as PDF" produces the file.
@@ -1124,8 +1449,11 @@ function exportPointsExcel() {
    same reference frame the rest of this app already uses) rather than
    the site's own local survey grid, since that grid's exact datum
    shift could not be independently verified here. Excludes the actual
-   sampling location layer by design.
+   sampling location layer by design. Both the map contents and the
+   summary reflect whatever search text and status filter are active
+   on screen at export time.
 --------------------------------------------------------------------- */
+var APP_URL = "https://muhammad-afifani.github.io/Sampling-Oil-Spill-RC-86/";
 var MAP_SVG_MPERDEG_LAT = 110574;
 function mPerDegLon(refLat) { return 111320 * Math.cos(refLat * Math.PI / 180); }
 
@@ -1210,9 +1538,13 @@ function buildMapExportSvg(round, mapWmm, mapHmm) {
     parts.push('<text x="' + cxy[0].toFixed(2) + '" y="' + cxy[1].toFixed(2) + '" font-size="4.6" font-weight="700" fill="#111" text-anchor="middle">' + esc(g.label) + '</text>');
   });
 
-  // Points (actual-location layer intentionally excluded)
+  // Points (actual-location layer intentionally excluded). Only points
+  // that currently match the on-screen search and status filter are
+  // drawn, so the printed map mirrors what the user has filtered to.
+  var q = (state.search || "").trim().toLowerCase();
   allPoints().forEach(function (p) {
     var r = repOf(p.id, round);
+    if (!(matchesFilter(r) && (!q || p.id.toLowerCase().indexOf(q) !== -1))) return;
     var xy = project(p.lat, p.lon);
     var fill = r.issue ? "#F2635C" : (r.done ? "#3BD488" : "#FFD400");
     if (r.issue) {
@@ -1252,13 +1584,29 @@ function buildPrintSheetHtml(round) {
   var built = buildMapExportSvg(round, MAP_W, MAP_H);
   var printScaleN = Math.round((1000 / built.scaleMmPerM) / 100) * 100;
 
-  var doneAll = 0, issueAll = 0, total = 0;
+  var q = (state.search || "").trim();
+  var qLower = q.toLowerCase();
+  var filterLabelMap = { all: "Semua", done: "Selesai", pending: "Belum", issue: "Bermasalah" };
+  var filterActive = state.statusFilter !== "all" || !!q;
+  var filterDesc = "Semua titik (tidak ada filter aktif)";
+  if (filterActive) {
+    filterDesc = "Status: " + (filterLabelMap[state.statusFilter] || "Semua") + (q ? "; Cari: “" + esc(q) + "”" : "");
+  }
+
+  var doneAll = 0, issueAll = 0, total = 0, shown = 0;
   allPoints().forEach(function (p) {
     total++;
     var r = repOf(p.id, round);
     if (r.done) doneAll++;
     if (r.issue) issueAll++;
+    if (matchesFilter(r) && (!qLower || p.id.toLowerCase().indexOf(qLower) !== -1)) shown++;
   });
+
+  var gridRowsHtml = GRIDS.map(function (g) {
+    var stats = gridStats(g, round);
+    return '<div class="printkop-gridrow"><span class="printkop-gridname">' + esc(g.label) + '</span>' +
+      '<span class="printkop-gridval">' + stats.done + '/' + stats.total + '</span></div>';
+  }).join("");
 
   var legendHtml = '<div class="printkop-box"><p class="printkop-boxtitle">LEGENDA</p>' +
     '<div class="printkop-legitem"><span class="printkop-dot" style="background:#FFD400;border:0.3mm solid #5c4b00"></span>Titik Sampling (Belum)</div>' +
@@ -1283,10 +1631,14 @@ function buildPrintSheetHtml(round) {
     '<tr><td>Selesai</td><td>' + doneAll + '</td></tr>' +
     '<tr><td>Kendala</td><td>' + issueAll + '</td></tr>' +
     '<tr><td>Area grid</td><td>' + GRIDS.length + '</td></tr>' +
-    '</table></div>';
+    '<tr><td>Titik ditampilkan</td><td>' + shown + ' dari ' + total + '</td></tr>' +
+    '<tr><td>Filter aktif</td><td>' + filterDesc + '</td></tr>' +
+    '</table>' +
+    '<p class="printkop-boxtitle printkop-gridtitle">PROGRES PER GRID</p>' +
+    '<div class="printkop-gridgrid">' + gridRowsHtml + '</div>' +
+    '</div>';
 
   var titleHtml = '<div class="printkop-box printkop-title">' +
-    '<p class="printkop-company">PT ELNUSA Tbk</p>' +
     '<p class="printkop-client">PERTAMINA HULU MAHAKAM</p>' +
     '<p class="printkop-subject">HANDIL TOPOGRAPHY SURVEY<br/>H-YB AREA</p>' +
     '<table class="printkop-titletable">' +
@@ -1294,7 +1646,10 @@ function buildPrintSheetHtml(round) {
     '<tr><td>Tanggal cetak</td><td>' + esc(formatDateID(new Date().toISOString().slice(0, 10))) + '</td></tr>' +
     '<tr><td>Sumber</td><td>Peta Sampling Oil Spill</td></tr>' +
     '</table>' +
+    '<div class="printkop-titlebottom">' +
     '<p class="printkop-disclaimer">Dibuat otomatis oleh Peta Sampling Oil Spill (Tim ENV BPN &amp; HCA) &mdash; bukan dokumen survei resmi.</p>' +
+    '<div class="printkop-qr">' + buildQrSvg(APP_URL, 20) + '<span class="printkop-qrlabel">Pindai untuk membuka aplikasi</span></div>' +
+    '</div>' +
     '</div>';
 
   return '<div class="printsheet"><div class="printsheet-border">' +

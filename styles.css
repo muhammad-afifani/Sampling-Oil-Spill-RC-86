@@ -397,14 +397,22 @@ a{color:var(--teal-text);text-decoration:none;}
 .printkop-geotable td{padding:0.8mm 0;border-bottom:0.15mm solid #ccc;}
 .printkop-geotable td:first-child{color:#555;width:45%;}
 .printkop-note{font-size:2.2mm;color:#555;margin:2mm 0 0;line-height:1.4;}
+.printkop-gridtitle{margin-top:2.5mm;}
+.printkop-gridgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 3mm;}
+.printkop-gridrow{display:flex;justify-content:space-between;gap:1mm;font-size:2.1mm;padding:0.4mm 0;border-bottom:0.15mm solid #ddd;}
+.printkop-gridname{color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.printkop-gridval{font-weight:700;flex:none;}
 .printkop-title{text-align:center;margin-top:auto;}
-.printkop-company{margin:0;font-size:3.4mm;font-weight:700;}
-.printkop-client{margin:0.5mm 0 0;font-size:2.8mm;font-weight:600;color:#333;}
+.printkop-client{margin:0;font-size:2.8mm;font-weight:600;color:#333;}
 .printkop-subject{margin:2mm 0;font-size:2.6mm;font-weight:600;line-height:1.4;}
 .printkop-titletable{width:100%;border-collapse:collapse;font-size:2.3mm;text-align:left;margin-top:1mm;}
 .printkop-titletable td{padding:0.6mm 0;border-bottom:0.15mm solid #ccc;}
 .printkop-titletable td:first-child{color:#555;width:40%;}
-.printkop-disclaimer{font-size:1.9mm;color:#777;margin:2mm 0 0;line-height:1.4;}
+.printkop-titlebottom{display:flex;align-items:flex-end;justify-content:space-between;gap:2mm;margin-top:2mm;text-align:left;}
+.printkop-disclaimer{font-size:1.9mm;color:#777;margin:0;line-height:1.4;flex:1;}
+.printkop-qr{display:flex;flex-direction:column;align-items:center;gap:0.8mm;flex:none;}
+.printkop-qr svg{width:20mm;height:20mm;display:block;}
+.printkop-qrlabel{font-size:1.5mm;color:#777;text-align:center;max-width:22mm;line-height:1.2;}
 @media print{
   @page{size:A3 landscape;margin:8mm;}
   html,body{background:#fff;}
