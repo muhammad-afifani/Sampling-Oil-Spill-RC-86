@@ -159,7 +159,7 @@ function parseExifForGPS(view, start) {
 }
 
 function defaultRound() {
-  return { done: false, date: "", notes: "", issue: false, photos: [], actualLat: null, actualLon: null, savedAt: 0 };
+  return { done: false, date: "", notes: "", personnel: "", issue: false, photos: [], actualLat: null, actualLon: null, savedAt: 0 };
 }
 
 /* ---------------------------------------------------------------------
@@ -310,6 +310,7 @@ function repOf(id, round) {
     done: !!(d && d.done),
     date: (d && d.date) || "",
     notes: (d && d.notes) || "",
+    personnel: (d && d.personnel) || "",
     issue: !!(d && d.issue),
     photos: (d && d.photos) || [],
     actualLat: (d && typeof d.actualLat === "number") ? d.actualLat : null,
@@ -346,7 +347,7 @@ function addPointMarker(p) {
   var marker = L.circleMarker([p.lat, p.lon], { radius: 5.5, weight: 1.8 }).addTo(map);
   marker.on("click", function () { selectPoint(p.id); });
   marker.bindTooltip(p.id, { permanent: true, direction: "top", offset: [0, -6], className: "point-label-tip", interactive: false });
-  marker.bindPopup("", { closeButton: false, autoPan: false, className: "point-hover-popup", offset: [0, -6], maxWidth: 220 });
+  marker.bindPopup("", { closeButton: false, autoPan: false, className: "point-hover-popup", offset: [0, -6], maxWidth: 240 });
   marker.on("mouseover", function () {
     marker.setPopupContent(pointHoverHtml(p.id));
     marker.openPopup();
@@ -389,7 +390,7 @@ function pointHoverHtml(id) {
     }
     return html;
   }
-  return '<span class="ph-id">' + esc(id) + '</span>' + roundBlock("Before", rb) + roundBlock("After", ra);
+  return '<span class="ph-id">' + esc(id) + '</span>' + roundBlock("Before Recovery", rb) + roundBlock("After Recovery", ra);
 }
 
 /* Partial-progress grid fill: instead of an arbitrary left/right split,
@@ -428,11 +429,22 @@ function ensureGridPattern(id) {
   gridPatternReady[id] = true;
 }
 
+function gridHasHatch(g, round) {
+  return gridMembers(g).some(function (id) {
+    var r = repOf(id, round);
+    return r.issue || (r.notes && r.notes.trim());
+  });
+}
+
 function gridPatternUrl(g, round) {
   var members = gridMembers(g).map(getPoint).filter(Boolean);
   if (!members.length) return null;
   var reps = members.map(function (p) { return { p: p, r: repOf(p.id, round) }; });
-  var key = g.id + "|" + round + "|" + reps.map(function (x) { return x.r.issue ? "X" : (x.r.done ? "1" : "0"); }).join("");
+  var key = g.id + "|" + round + "|" + reps.map(function (x) {
+    var statusChar = x.r.issue ? "X" : (x.r.done ? "1" : "0");
+    var hatchChar = (x.r.issue || (x.r.notes && x.r.notes.trim())) ? "H" : "-";
+    return statusChar + hatchChar;
+  }).join("");
   if (gridPatternCache[key]) return gridPatternCache[key];
 
   var lats = g.ring.map(function (c) { return c[0]; });
@@ -443,10 +455,12 @@ function gridPatternUrl(g, round) {
 
   var pts = reps.map(function (x) {
     var color = x.r.issue ? COLORS.issue : (x.r.done ? COLORS.done : COLORS.pending);
+    var hatch = !!(x.r.issue || (x.r.notes && x.r.notes.trim()));
     return {
       x: (x.p.lon - minLon) / lonSpan * GRID_PATTERN_SIZE,
       y: (1 - (x.p.lat - minLat) / latSpan) * GRID_PATTERN_SIZE,
-      rgb: hexToRgb(color)
+      rgb: hexToRgb(color),
+      hatch: hatch
     };
   });
 
@@ -456,14 +470,18 @@ function gridPatternUrl(g, round) {
   var img = ctx.createImageData(GRID_PATTERN_SIZE, GRID_PATTERN_SIZE);
   for (var yy = 0; yy < GRID_PATTERN_SIZE; yy++) {
     for (var xx = 0; xx < GRID_PATTERN_SIZE; xx++) {
-      var bestRgb = pts[0].rgb, bestDist = Infinity;
+      var best = pts[0], bestDist = Infinity;
       for (var i = 0; i < pts.length; i++) {
         var dx = xx - pts[i].x, dy = yy - pts[i].y;
         var d = dx * dx + dy * dy;
-        if (d < bestDist) { bestDist = d; bestRgb = pts[i].rgb; }
+        if (d < bestDist) { bestDist = d; best = pts[i]; }
+      }
+      var r0 = best.rgb[0], g0 = best.rgb[1], b0 = best.rgb[2];
+      if (best.hatch && ((xx + yy) % 10) < 4) {
+        r0 = Math.round(r0 * 0.45); g0 = Math.round(g0 * 0.45); b0 = Math.round(b0 * 0.45);
       }
       var idx = (yy * GRID_PATTERN_SIZE + xx) * 4;
-      img.data[idx] = bestRgb[0]; img.data[idx + 1] = bestRgb[1]; img.data[idx + 2] = bestRgb[2]; img.data[idx + 3] = 255;
+      img.data[idx] = r0; img.data[idx + 1] = g0; img.data[idx + 2] = b0; img.data[idx + 3] = 255;
     }
   }
   ctx.putImageData(img, 0, 0);
@@ -521,14 +539,15 @@ function initMap() {
 
 function gridStats(g, round) {
   var members = gridMembers(g);
-  var done = 0, issue = 0;
+  var done = 0, issue = 0, hatch = 0;
   members.forEach(function (id) {
     var r = repOf(id, round);
     if (r.done) done++;
     if (r.issue) issue++;
+    if (r.issue || (r.notes && r.notes.trim())) hatch++;
   });
   var total = members.length;
-  return { done: done, issue: issue, total: total, pct: total ? done / total : 0 };
+  return { done: done, issue: issue, hatch: hatch, total: total, pct: total ? done / total : 0 };
 }
 
 function gridTierColor(pct) {
@@ -561,7 +580,8 @@ function updateMapStyles() {
       weight: isSel ? 3 : 1.6,
       fillOpacity: showFill ? (isSel ? 0.42 : 0.26) : 0
     });
-    if (showFill && stats.pct > 0 && stats.pct < 1 && layer._path) {
+    var needsPattern = (stats.pct > 0 && stats.pct < 1) || stats.hatch > 0;
+    if (showFill && needsPattern && layer._path) {
       var patternRef = applyGridPattern(g, round);
       if (patternRef) layer._path.setAttribute("fill", patternRef);
     }
@@ -588,6 +608,9 @@ function updateMapStyles() {
       fillOpacity: match ? 0.95 : 0.18,
       opacity: match ? 1 : 0.25
     });
+    if (layer._path) {
+      layer._path.classList.toggle("marker-pending-pulse", !r.done && !r.issue && match);
+    }
   });
 
   updateActualLayer();
@@ -1303,6 +1326,8 @@ function renderBottomPanel(gridStatsList) {
       '<div class="field"><label for="pdate">Tanggal Sampling</label>' +
       '<input id="pdate" type="date" value="' + esc(active.date) + '" data-field="date"/></div>' +
       (active.done && !active.date ? '<p class="field-warn">Isi tanggal sampling untuk melengkapi catatan.</p>' : '') +
+      '<div class="field"><label for="ppersonnel">Personil Sampling</label>' +
+      '<input id="ppersonnel" type="text" placeholder="Pisahkan beberapa nama dengan koma" value="' + esc(active.personnel) + '" data-field="personnel"/></div>' +
       '<div class="field"><label for="pnotes">Catatan Kendala Sampling</label>' +
       '<textarea id="pnotes" placeholder="Contoh: akses lokasi terhalang pasang air laut, alat rusak, dan sebagainya" data-field="notes">' + esc(active.notes) + '</textarea></div>' +
       '<div class="checkrow"><input id="pissue" type="checkbox" data-field="issue"' + (active.issue ? " checked" : "") + '/><label for="pissue">Tandai ada kendala pada titik ini</label></div>' +
@@ -1484,6 +1509,12 @@ function onInput(e) {
     current.notes = t.value;
     existing[state.round] = current;
     state.reports[state.selectedId] = existing;
+  } else if (field === "personnel") {
+    var existingP = state.reports[state.selectedId] ? Object.assign({}, state.reports[state.selectedId]) : {};
+    var currentP = existingP[state.round] ? Object.assign({}, existingP[state.round]) : defaultRound();
+    currentP.personnel = t.value;
+    existingP[state.round] = currentP;
+    state.reports[state.selectedId] = existingP;
   } else if (field === "gridnote" && state.selectedGridId) {
     state.gridNotes[state.selectedGridId] = t.value;
   } else if (field === "actualLat" || field === "actualLon") {
@@ -1519,7 +1550,7 @@ function onChange(e) {
 function onBlur(e) {
   var t = e.target;
   var field = t.getAttribute && t.getAttribute("data-field");
-  if (field === "notes" || field === "gridnote") persist();
+  if (field === "notes" || field === "personnel" || field === "gridnote") persist();
 }
 
 function onDragOver(e) {
