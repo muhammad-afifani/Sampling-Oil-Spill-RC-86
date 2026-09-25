@@ -987,15 +987,17 @@ function finishImport(updated, addedPoints, photoFailure, opts) {
 }
 
 /* ---------------------------------------------------------------------
-   Shared data sync: on load, check the data/exports/ folder in the
-   GitHub repository for the most recently named JSON export and merge
-   it in, so everyone opening the page picks up the latest team update.
-   Best-effort: any failure (offline, nothing uploaded yet) is silent.
+   Shared data sync: on load, check the repository root on GitHub for
+   the most recently named JSON export (the same auto-generated name
+   Ekspor JSON produces, e.g. sampling-oilspill-2026-09-25.json) and
+   merge it in, so everyone opening the page picks up the latest team
+   update. Best-effort: any failure (offline, nothing uploaded yet) is
+   silent.
 --------------------------------------------------------------------- */
 var SYNC_OWNER = "muhammad-afifani";
 var SYNC_REPO = "Sampling-Oil-Spill-RC-86";
 var SYNC_BRANCH = "claude/stoic-cannon-ew2fbf";
-var SYNC_PATH = "data/exports";
+var SYNC_NAME_RE = /^sampling-oilspill-.*\.json$/i;
 
 function showSyncBanner(msg) {
   var el = document.getElementById("syncBanner");
@@ -1013,12 +1015,12 @@ function hideSyncBanner() {
 function syncFromRemote() {
   if (!window.fetch) return;
   showSyncBanner("Memperbarui database…");
-  var listUrl = "https://api.github.com/repos/" + SYNC_OWNER + "/" + SYNC_REPO + "/contents/" + SYNC_PATH + "?ref=" + SYNC_BRANCH;
+  var listUrl = "https://api.github.com/repos/" + SYNC_OWNER + "/" + SYNC_REPO + "/contents?ref=" + SYNC_BRANCH;
   fetch(listUrl, { headers: { Accept: "application/vnd.github+json" } })
     .then(function (res) { return res.ok ? res.json() : []; })
     .then(function (list) {
       if (!Array.isArray(list)) { hideSyncBanner(); return; }
-      var files = list.filter(function (f) { return f.type === "file" && /\.json$/i.test(f.name); });
+      var files = list.filter(function (f) { return f.type === "file" && SYNC_NAME_RE.test(f.name); });
       if (!files.length) { hideSyncBanner(); return; }
       files.sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
       var latest = files[files.length - 1];
