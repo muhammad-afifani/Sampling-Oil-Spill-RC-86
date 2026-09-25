@@ -404,7 +404,7 @@ function hexToRgb(hex) {
   return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
 }
 
-var GRID_PATTERN_SIZE = 72;
+var GRID_PATTERN_SIZE = 96;
 var gridPatternReady = {};
 var gridPatternCache = {};
 
@@ -477,8 +477,8 @@ function gridPatternUrl(g, round) {
         if (d < bestDist) { bestDist = d; best = pts[i]; }
       }
       var r0 = best.rgb[0], g0 = best.rgb[1], b0 = best.rgb[2];
-      if (best.hatch && ((xx + yy) % 10) < 4) {
-        r0 = Math.round(r0 * 0.45); g0 = Math.round(g0 * 0.45); b0 = Math.round(b0 * 0.45);
+      if (best.hatch && ((xx + yy) % 7) < 2) {
+        r0 = Math.round(r0 * 0.2); g0 = Math.round(g0 * 0.2); b0 = Math.round(b0 * 0.2);
       }
       var idx = (yy * GRID_PATTERN_SIZE + xx) * 4;
       img.data[idx] = r0; img.data[idx + 1] = g0; img.data[idx + 2] = b0; img.data[idx + 3] = 255;
@@ -574,11 +574,12 @@ function updateMapStyles() {
     var showFill = state.showGridFill || isSel;
     var layer = gridLayers[g.id];
     var strokeColor = state.showGridColors ? GRID_COLOR[g.id] : tier.stroke;
+    var baseOpacity = stats.hatch > 0 ? 0.42 : 0.26;
     layer.setStyle({
       color: strokeColor,
       fillColor: tier.fill,
       weight: isSel ? 3 : 1.6,
-      fillOpacity: showFill ? (isSel ? 0.42 : 0.26) : 0
+      fillOpacity: showFill ? (isSel ? 0.5 : baseOpacity) : 0
     });
     var needsPattern = (stats.pct > 0 && stats.pct < 1) || stats.hatch > 0;
     if (showFill && needsPattern && layer._path) {
