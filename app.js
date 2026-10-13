@@ -259,7 +259,9 @@ var state = {
   newPointDraft: { code: "", type: "air", gridId: "", lat: null, lon: null },
   reports: {},
   gridNotes: {},
-  customPoints: []
+  customPoints: [],
+  dateFilter: { mode: "all", date: "", from: "", to: "" },
+  exportDlg: null
 };
 
 (function loadState() {
@@ -375,7 +377,7 @@ function hydratePopupPhotos(popup) {
   for (var i = 0; i < imgs.length; i++) {
     (function (img) {
       var id = img.getAttribute("data-photo-id");
-      ensurePhotoUrl(id).then(function (url) { if (url) img.src = url; });
+      ensurePhotoUrl(id).then(function (url) { if (url) img.src = url; else markPhotoMissing(img); });
     })(imgs[i]);
   }
 }
@@ -574,10 +576,58 @@ function gridTierColor(pct) {
 }
 
 function matchesFilter(r) {
-  if (state.statusFilter === "done") return r.done;
-  if (state.statusFilter === "pending") return !r.done;
-  if (state.statusFilter === "issue") return r.issue;
+  if (state.statusFilter === "done" && !r.done) return false;
+  if (state.statusFilter === "pending" && r.done) return false;
+  if (state.statusFilter === "issue" && !r.issue) return false;
+  return matchesDateFilter(r);
+}
+
+function matchesDateFilter(r) {
+  var f = state.dateFilter;
+  if (f.mode === "single") return !!f.date && r.date === f.date;
+  if (f.mode === "range") {
+    if (!r.date) return false;
+    if (f.from && r.date < f.from) return false;
+    if (f.to && r.date > f.to) return false;
+  }
   return true;
+}
+
+function dateFilterText() {
+  var f = state.dateFilter;
+  if (f.mode === "single" && f.date) return "tanggal " + formatDateID(f.date);
+  if (f.mode === "range" && (f.from || f.to)) {
+    if (f.from && f.to) return "tanggal " + formatDateID(f.from) + " sampai " + formatDateID(f.to);
+    return f.from ? "tanggal mulai " + formatDateID(f.from) : "tanggal sampai " + formatDateID(f.to);
+  }
+  return "";
+}
+
+var lastDateOptsHtml = "";
+function renderDateFilter() {
+  var sel = document.getElementById("dateFilterSelect");
+  if (!sel) return;
+  var f = state.dateFilter;
+  var counts = {};
+  allPoints().forEach(function (p) {
+    var r = repOf(p.id, state.round);
+    if (r.date) counts[r.date] = (counts[r.date] || 0) + 1;
+  });
+  var dates = Object.keys(counts);
+  if (f.mode === "single" && f.date && !counts[f.date]) dates.push(f.date);
+  dates.sort();
+  var value = f.mode === "single" ? "d:" + f.date : f.mode;
+  var html = '<option value="all">Semua tanggal</option>' + dates.map(function (d) {
+    return '<option value="d:' + esc(d) + '">' + esc(formatDateID(d)) + ' (' + (counts[d] || 0) + ' titik)</option>';
+  }).join("") + '<option value="range">Rentang tanggal…</option>';
+  if (html !== lastDateOptsHtml) { sel.innerHTML = html; lastDateOptsHtml = html; }
+  sel.value = value;
+  sel.classList.toggle("is-active", f.mode !== "all");
+  var range = document.getElementById("dateRange");
+  if (range) range.style.display = f.mode === "range" ? "flex" : "none";
+  var from = document.getElementById("dateFrom"), to = document.getElementById("dateTo");
+  if (from && document.activeElement !== from) from.value = f.from;
+  if (to && document.activeElement !== to) to.value = f.to;
 }
 
 function updateMapStyles() {
@@ -859,8 +909,14 @@ function hydrateGalleryImages() {
   imgs.forEach(function (img) {
     var id = img.getAttribute("data-photo-id");
     if (photoUrlCache[id]) { img.src = photoUrlCache[id]; return; }
-    ensurePhotoUrl(id).then(function (url) { if (url) img.src = url; });
+    ensurePhotoUrl(id).then(function (url) { if (url) img.src = url; else markPhotoMissing(img); });
   });
+}
+
+function markPhotoMissing(img) {
+  img.classList.add("photo-missing");
+  img.title = "Foto tidak tersedia di perangkat ini (data diimpor tanpa foto)";
+  img.alt = "Foto tidak tersedia";
 }
 
 function openLightbox(photoId) {
@@ -868,10 +924,148 @@ function openLightbox(photoId) {
   renderLightbox();
 }
 
-function exportJson() {
-  showToast("info", "Menyiapkan berkas ekspor, mohon tunggu sebentar.");
-  var reportsCopy = {};
-  var photoReads = [];
+/* ---------------------------------------------------------------------
+   JSON export. Photos can be included at original quality, re-encoded
+   smaller ("ringkas"), or left out entirely so the file stays under the
+   25 MB browser-upload limit of GitHub. Photo entries are always kept
+   (id, time, GPS) so a device that already holds the photo keeps it.
+--------------------------------------------------------------------- */
+var EXPORT_MODE_KEY = "oilspill_export_mode";
+var COMPACT_PHOTO_DIM = 1024;
+var COMPACT_PHOTO_QUALITY = 0.55;
+var GITHUB_UPLOAD_LIMIT = 25 * 1024 * 1024;
+
+function allPhotoRefs() {
+  var refs = [];
+  Object.keys(state.reports).forEach(function (pid) {
+    ["before", "after"].forEach(function (round) {
+      var r = state.reports[pid] && state.reports[pid][round];
+      if (r && r.photos) r.photos.forEach(function (ph) { refs.push(ph.id); });
+    });
+  });
+  return refs;
+}
+
+function fmtBytes(n) {
+  if (n >= 1024 * 1024) return (n / 1024 / 1024).toLocaleString("id-ID", { maximumFractionDigits: 1 }) + " MB";
+  return Math.max(1, Math.round(n / 1024)).toLocaleString("id-ID") + " KB";
+}
+
+function exportBasePayload() {
+  return {
+    schema: "oilspill-sampling-v2",
+    exportedAt: new Date().toISOString(),
+    totalPoints: allPoints().length,
+    totalGrids: GRIDS.length,
+    reports: {},
+    gridNotes: state.gridNotes,
+    customPoints: state.customPoints,
+    labSamples: labExportForJson(),
+    labConfig: state.labCfg
+  };
+}
+
+function openExportDialog() {
+  var mode = "compact";
+  try { mode = localStorage.getItem(EXPORT_MODE_KEY) || "compact"; } catch (e) {}
+  if (["compact", "full", "none"].indexOf(mode) === -1) mode = "compact";
+  state.exportDlg = { mode: mode, stats: null, busy: false, progress: "" };
+  renderExportDialog();
+  var refs = allPhotoRefs();
+  var stats = { count: 0, bytes: 0, compactBytes: 0, missing: 0, base: JSON.stringify(exportBasePayload()).length + JSON.stringify(state.reports).length };
+  var chain = Promise.resolve();
+  refs.forEach(function (id) {
+    chain = chain.then(function () {
+      return dbGetPhoto(id).then(function (blob) {
+        if (!blob) { stats.missing++; return; }
+        stats.count++;
+        stats.bytes += blob.size;
+        stats.compactBytes += Math.min(blob.size, 120 * 1024);
+      }).catch(function () { stats.missing++; });
+    });
+  });
+  chain.then(function () {
+    if (!state.exportDlg) return;
+    state.exportDlg.stats = stats;
+    renderExportDialog();
+  });
+}
+
+function closeExportDialog() {
+  state.exportDlg = null;
+  renderExportDialog();
+}
+
+function exportEstimate(mode, st) {
+  if (!st) return null;
+  if (mode === "none") return st.base;
+  return st.base + Math.round((mode === "full" ? st.bytes : st.compactBytes) * 1.34);
+}
+
+function renderExportDialog() {
+  var root = document.getElementById("exportRoot");
+  if (!root) return;
+  var d = state.exportDlg;
+  if (!d) { root.innerHTML = ""; return; }
+  var st = d.stats;
+  var labCount = labAllLive().length;
+  function opt(mode, title, desc) {
+    var est = exportEstimate(mode, st);
+    return '<label class="expopt' + (d.mode === mode ? ' active' : '') + '">' +
+      '<input type="radio" name="exportmode" value="' + mode + '" data-field="export-mode"' + (d.mode === mode ? ' checked' : '') + (d.busy ? ' disabled' : '') + '/>' +
+      '<span class="expopt-body"><span class="expopt-title">' + title + '</span><span class="expopt-desc">' + desc + '</span></span>' +
+      '<span class="expopt-size">' + (est == null ? '…' : '± ' + fmtBytes(est)) + '</span></label>';
+  }
+  var est = exportEstimate(d.mode, st);
+  var tooBig = est != null && est > GITHUB_UPLOAD_LIMIT;
+  root.innerHTML = '<div class="modal-backdrop" data-action="export-backdrop">' +
+    '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">' +
+    '<div class="modal-head"><h3 id="exportTitle">Ekspor Data JSON</h3>' +
+    '<button type="button" class="iconbtn" data-action="export-close" aria-label="Tutup"' + (d.busy ? ' disabled' : '') + '>' + ICONS.close + '</button></div>' +
+    '<div class="modal-body">' +
+    '<p class="formhint">Satu berkas berisi seluruh data aplikasi: progres sampling Before dan After Recovery, catatan, lokasi aktual, titik tambahan, serta ' + labCount + ' hasil uji lab. Berkas ini bisa diimpor di perangkat lain atau diunggah ke repositori GitHub untuk dibagikan ke tim.</p>' +
+    '<div class="expopts">' +
+    opt("compact", "Dengan foto, ringkas (disarankan)", "Foto diperkecil maksimal " + COMPACT_PHOTO_DIM + " px, masih jelas untuk dokumentasi.") +
+    opt("full", "Dengan foto, kualitas asli", "Foto seperti yang tersimpan di perangkat. Berkas paling besar.") +
+    opt("none", "Tanpa foto (paling ringan)", "Hanya data. Foto tetap aman di perangkat ini; di perangkat lain foto ditandai tidak tersedia.") +
+    '</div>' +
+    '<p class="expstats">' + (st ? (st.count ? st.count + ' foto tersimpan di perangkat ini (' + fmtBytes(st.bytes) + ')' : 'Belum ada foto tersimpan di perangkat ini') + (st.missing ? ', ' + st.missing + ' foto tidak tersedia di perangkat ini' : '') + '. Ukuran berkas adalah perkiraan.' : 'Menghitung ukuran foto…') + '</p>' +
+    (tooBig ? '<p class="formerror">Perkiraan ukuran melebihi 25 MB, batas unggah berkas lewat browser di GitHub. Pilih Dengan foto, ringkas atau Tanpa foto bila berkas akan diunggah ke GitHub.</p>' : '') +
+    (d.progress ? '<p class="expprogress">' + esc(d.progress) + '</p>' : '') +
+    '</div>' +
+    '<div class="modal-foot"><span></span><div class="modal-foot-right">' +
+    '<button type="button" class="btn" data-action="export-close"' + (d.busy ? ' disabled' : '') + '>Batal</button>' +
+    '<button type="button" class="btn btn-primary" data-action="export-download"' + (d.busy ? ' disabled' : '') + '>' + ICONS.download + ' ' + (d.busy ? 'Menyiapkan…' : 'Unduh JSON') + '</button>' +
+    '</div></div></div></div>';
+}
+
+function compressPhotoBlob(blob) {
+  return new Promise(function (resolve) {
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    img.onload = function () {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var sc = Math.min(1, COMPACT_PHOTO_DIM / Math.max(w, h));
+      var canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(w * sc));
+      canvas.height = Math.max(1, Math.round(h * sc));
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(function (out) { resolve(out && out.size < blob.size ? out : blob); }, "image/jpeg", COMPACT_PHOTO_QUALITY);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); resolve(blob); };
+    img.src = url;
+  });
+}
+
+function exportJson(mode) {
+  mode = mode || "compact";
+  var d = state.exportDlg;
+  if (d) { d.busy = true; d.progress = "Menyiapkan berkas…"; renderExportDialog(); }
+  var payload = exportBasePayload();
+  payload.photoMode = mode;
+  var tasks = [];
+  var withData = 0;
 
   Object.keys(state.reports).forEach(function (pid) {
     var r = state.reports[pid];
@@ -884,30 +1078,31 @@ function exportJson() {
         if (typeof ph.gpsLat === "number" && typeof ph.gpsLon === "number") {
           entry.gpsLat = ph.gpsLat; entry.gpsLon = ph.gpsLon;
         }
-        photoReads.push(dbGetPhoto(ph.id).then(function (blob) {
-          if (!blob) return;
-          return blobToBase64(blob).then(function (b64) { entry.data = b64; });
-        }));
+        if (mode !== "none") tasks.push({ id: ph.id, entry: entry });
         return entry;
       });
       copy[round] = roundCopy;
     });
-    reportsCopy[pid] = copy;
+    payload.reports[pid] = copy;
   });
 
-  Promise.all(photoReads).then(function () {
-    var payload = {
-      schema: "oilspill-sampling-v2",
-      exportedAt: new Date().toISOString(),
-      totalPoints: allPoints().length,
-      totalGrids: GRIDS.length,
-      reports: reportsCopy,
-      gridNotes: state.gridNotes,
-      customPoints: state.customPoints,
-      labSamples: labExportForJson(),
-      labConfig: state.labCfg
-    };
-    var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+  var chain = Promise.resolve();
+  tasks.forEach(function (t, i) {
+    chain = chain.then(function () {
+      if (state.exportDlg) { state.exportDlg.progress = "Memproses foto " + (i + 1) + " dari " + tasks.length + "…"; renderExportDialog(); }
+      return dbGetPhoto(t.id).then(function (blob) {
+        if (!blob) return;
+        return (mode === "compact" ? compressPhotoBlob(blob) : Promise.resolve(blob)).then(blobToBase64).then(function (b64) {
+          t.entry.data = b64;
+          withData++;
+        });
+      });
+    });
+  });
+
+  chain.then(function () {
+    var json = JSON.stringify(payload);
+    var blob = new Blob([json], { type: "application/json" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
@@ -916,8 +1111,16 @@ function exportJson() {
     a.click();
     document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
-    showToast("success", "Data berhasil diekspor ke berkas JSON.");
+    state.exportDlg = null;
+    renderExportDialog();
+    var label = mode === "none" ? "tanpa foto" : (mode === "compact" ? "foto ringkas" : "foto kualitas asli");
+    if (blob.size > GITHUB_UPLOAD_LIMIT) {
+      showToast("warn", "Berkas JSON terunduh (" + fmtBytes(blob.size) + ", " + label + "), tetapi melebihi batas unggah GitHub 25 MB. Ekspor ulang dengan pilihan Tanpa foto.");
+    } else {
+      showToast("success", "Berkas JSON terunduh: " + fmtBytes(blob.size) + " (" + label + (mode !== "none" ? ", " + withData + " foto" : "") + ").");
+    }
   }).catch(function () {
+    if (state.exportDlg) { state.exportDlg.busy = false; state.exportDlg.progress = ""; renderExportDialog(); }
     showToast("warn", "Gagal menyiapkan berkas ekspor.");
   });
 }
@@ -1596,10 +1799,11 @@ function buildPrintSheetHtml(round) {
   var q = (state.search || "").trim();
   var qLower = q.toLowerCase();
   var filterLabelMap = { all: "Semua", done: "Selesai", pending: "Belum", issue: "Bermasalah" };
-  var filterActive = state.statusFilter !== "all" || !!q;
+  var dateDesc = dateFilterText();
+  var filterActive = state.statusFilter !== "all" || !!q || !!dateDesc;
   var filterDesc = "Semua titik (tidak ada filter aktif)";
   if (filterActive) {
-    filterDesc = "Status: " + (filterLabelMap[state.statusFilter] || "Semua") + (q ? "; Cari: “" + esc(q) + "”" : "");
+    filterDesc = "Status: " + (filterLabelMap[state.statusFilter] || "Semua") + (q ? "; Cari: “" + esc(q) + "”" : "") + (dateDesc ? "; " + esc(dateDesc) : "");
   }
 
   var doneAll = 0, issueAll = 0, total = 0, shown = 0;
@@ -1703,7 +1907,7 @@ function mergeImport(data, opts) {
   var incoming = (data && data.reports) || {};
   var incomingNotes = (data && data.gridNotes) || {};
   var incomingCustom = (data && data.customPoints) || [];
-  var updated = 0, addedPoints = 0;
+  var updated = 0, addedPoints = 0, photosFilled = 0;
   var photoWrites = [];
 
   var existingIds = {};
@@ -1739,6 +1943,16 @@ function mergeImport(data, opts) {
         delete roundCopy.data;
         cur[round] = roundCopy;
         updated++;
+      } else {
+        var known = {};
+        (curR.photos || []).forEach(function (ph) { known[ph.id] = true; });
+        (incR.photos || []).forEach(function (ph) {
+          if (!ph.data || !known[ph.id]) return;
+          photoWrites.push(dbGetPhoto(ph.id).then(function (existing) {
+            if (existing) return;
+            return base64ToBlob(ph.data).then(function (blob) { return dbPutPhoto(ph.id, blob); }).then(function () { photosFilled++; });
+          }));
+        });
       }
     });
     state.reports[pid] = cur;
@@ -1746,18 +1960,19 @@ function mergeImport(data, opts) {
   state.gridNotes = Object.assign({}, state.gridNotes, incomingNotes);
   updated += labMergeSamples(data && data.labSamples);
 
-  Promise.all(photoWrites).then(function () { finishImport(updated, addedPoints, false, opts); }).catch(function () {
-    finishImport(updated, addedPoints, true, opts);
+  Promise.all(photoWrites).then(function () { finishImport(updated, addedPoints, false, opts, photosFilled); }).catch(function () {
+    finishImport(updated, addedPoints, true, opts, photosFilled);
   });
 }
 
-function finishImport(updated, addedPoints, photoFailure, opts) {
+function finishImport(updated, addedPoints, photoFailure, opts, photosFilled) {
   opts = opts || {};
   persist();
   render();
   if (!opts.silent) {
     var msg = "Impor selesai. " + updated + " entri diperbarui";
     if (addedPoints) msg += ", " + addedPoints + " titik tambahan baru ditambahkan";
+    if (photosFilled) msg += ", " + photosFilled + " foto yang belum ada di perangkat ini ditambahkan";
     msg += " dari berkas.";
     if (photoFailure) msg += " Sebagian foto gagal disimpan.";
     showToast(photoFailure ? "warn" : "success", msg);
@@ -2082,6 +2297,7 @@ function render() {
   ["all", "done", "pending", "issue"].forEach(function (f) {
     document.getElementById("filter-" + f).className = "chip" + (state.statusFilter === f ? " active" : "");
   });
+  renderDateFilter();
 
   renderBottomPanel(gridStatsList);
   updateMapStyles();
@@ -2476,11 +2692,18 @@ function onAction(e) {
   } else if (action === "remove-photo") {
     removePhoto(state.selectedId, state.round, el.getAttribute("data-photo-id"));
   } else if (action === "open-lightbox") {
+    if (el.classList.contains("photo-missing")) { showToast("info", "Foto ini tidak tersedia di perangkat ini karena data diimpor tanpa foto."); return; }
     var idx = parseInt(el.getAttribute("data-idx"), 10);
     var photo = currentPhotos[idx];
     if (photo) openLightbox(photo.id);
-  } else if (action === "export-json") {
-    exportJson();
+  } else if (action === "export-json" || action === "open-export") {
+    openExportDialog();
+  } else if (action === "export-close") {
+    closeExportDialog();
+  } else if (action === "export-backdrop") {
+    if (e.target === el) closeExportDialog();
+  } else if (action === "export-download") {
+    if (state.exportDlg && !state.exportDlg.busy) exportJson(state.exportDlg.mode);
   } else if (action === "pick-actual") {
     startPickActual(state.selectedId, state.round);
   } else if (action === "detect-location") {
@@ -2556,6 +2779,23 @@ function onChange(e) {
   if (!field) return;
   if (field.indexOf("lab-") === 0) { labOnChange(field, t); return; }
 
+  if (field === "date-filter") {
+    var v = t.value;
+    if (v === "all") state.dateFilter = { mode: "all", date: "", from: "", to: "" };
+    else if (v === "range") state.dateFilter = { mode: "range", date: "", from: state.dateFilter.from, to: state.dateFilter.to };
+    else state.dateFilter = { mode: "single", date: v.slice(2), from: "", to: "" };
+    render();
+    return;
+  }
+  if (field === "date-from" || field === "date-to") {
+    state.dateFilter[field === "date-from" ? "from" : "to"] = t.value;
+    render();
+    return;
+  }
+  if (field === "export-mode") {
+    if (state.exportDlg) { state.exportDlg.mode = t.value; try { localStorage.setItem(EXPORT_MODE_KEY, t.value); } catch (err) {} renderExportDialog(); }
+    return;
+  }
   if (field === "newtype") { state.newPointDraft.type = t.value; return; }
   if (field === "newgrid") { state.newPointDraft.gridId = t.value || ""; return; }
 
@@ -2626,6 +2866,7 @@ function boot() {
   document.body.addEventListener("dragleave", onDragLeave);
   document.body.addEventListener("drop", onDrop);
   document.addEventListener("fullscreenchange", onFullscreenChange);
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && state.exportDlg && !state.exportDlg.busy) closeExportDialog(); });
   window.addEventListener("afterprint", onAfterPrint);
 }
 

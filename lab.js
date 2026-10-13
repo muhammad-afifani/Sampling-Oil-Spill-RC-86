@@ -141,8 +141,15 @@ var LAB_DEFAULT_CFG = {
   leakLon: 117.26528964936735,
   windTo: 0,
   cone: 45,
-  eventText: "28 Agustus 2026, sekitar pukul 15.00 WITA"
+  eventDate: "2026-08-28",
+  eventTime: "15:00",
+  windMeta: {}
 };
+
+var WIND_SOURCES = [
+  { url: "https://archive-api.open-meteo.com/v1/archive", label: "Open-Meteo Historical Weather API (reanalisis ERA5)" },
+  { url: "https://historical-forecast-api.open-meteo.com/v1/forecast", label: "Open-Meteo Historical Forecast API (arsip model cuaca)" }
+];
 
 var LAB_ICONS = {
   flask: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 3h6M10 3v6.2L4.6 18.4A1.7 1.7 0 0 0 6.1 21h11.8a1.7 1.7 0 0 0 1.5-2.6L14 9.2V3" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7.2 15h9.6" stroke="currentColor" stroke-width="1.8"/></svg>',
@@ -297,6 +304,9 @@ function labSeedSamples() {
     }
   } catch (e) {}
   if (cfg.param !== "index" && !LAB_PARAMS[cfg.param]) cfg.param = LAB_DEFAULT_CFG.param;
+  if (!cfg.windMeta || typeof cfg.windMeta !== "object" || Array.isArray(cfg.windMeta)) cfg.windMeta = {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cfg.eventDate)) cfg.eventDate = LAB_DEFAULT_CFG.eventDate;
+  if (!/^\d{2}:\d{2}$/.test(cfg.eventTime)) cfg.eventTime = LAB_DEFAULT_CFG.eventTime;
   state.labCfg = cfg;
 
   var hash = (location.hash || "").toLowerCase();
@@ -304,7 +314,7 @@ function labSeedSamples() {
   if (!view) { try { view = localStorage.getItem(VIEW_KEY); } catch (e) {} }
   state.view = view === "progress" ? "progress" : "lab";
 
-  state.labUi = { selected: null, tblFilter: "all", tblSearch: "", tblSort: "kode", showAllRows: false, settingsOpen: false, form: null, importPreview: null };
+  state.labUi = { selected: null, tblFilter: "all", tblSearch: "", tblSort: "kode", showAllRows: false, settingsOpen: false, form: null, importPreview: null, windDay: null, windLoading: false, windError: "" };
 })();
 
 function persistLab() {
@@ -928,7 +938,7 @@ function labUpdateMap() {
   }
   labApplySelection();
 
-  var windKey = [labDataVersion, cfg.showWind, cfg.leakLat, cfg.leakLon, cfg.windTo, cfg.cone, cfg.eventText].join("|");
+  var windKey = [labDataVersion, cfg.showWind, cfg.leakLat, cfg.leakLon, cfg.windTo, cfg.cone, cfg.eventDate, cfg.eventTime, JSON.stringify(cfg.windMeta)].join("|");
   if (windKey !== labMap.windKey) {
     labMap.windKey = windKey;
     labMap.windLayer.clearLayers();
@@ -983,7 +993,7 @@ function buildWindLayer(obsList) {
   var back = destPoint(tip[0], tip[1], cfg.windTo + 180, 10);
   L.polygon([tip, destPoint(back[0], back[1], cfg.windTo - 90, 5), destPoint(back[0], back[1], cfg.windTo + 90, 5)], { pane: "labWind", color: "#DDF3FF", weight: 1, fillColor: "#DDF3FF", fillOpacity: 1, interactive: false }).addTo(labMap.windLayer);
   var lbl = destPoint(cfg.leakLat, cfg.leakLon, cfg.windTo, R * 0.9 + 14);
-  L.marker(lbl, { pane: "labWind", interactive: false, keyboard: false, icon: L.divIcon({ html: '<span>' + LAB_ICONS.wind + ' Angin menuju ' + esc(compassName(cfg.windTo)) + '</span>', className: "lab-wind-label", iconSize: [190, 22], iconAnchor: [95, 11] }) }).addTo(labMap.windLayer);
+  L.marker(lbl, { pane: "labWind", interactive: false, keyboard: false, icon: L.divIcon({ html: '<span>' + LAB_ICONS.wind + ' Angin menuju ' + esc(compassName(cfg.windTo)) + (windHasSpeed() ? ' · ' + esc(fmtNum(cfg.windMeta.speedKmh)) + ' km/jam' : '') + '</span>', className: "lab-wind-label", iconSize: [230, 22], iconAnchor: [115, 11] }) }).addTo(labMap.windLayer);
 
   var leakIcon = L.divIcon({
     html: '<span class="leak-pulse"></span><span class="leak-core"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3 2.5 20h19L12 3Z" fill="#fff"/><path d="M12 9.5v5M12 17.2v.3" stroke="#C62828" stroke-width="2.4" stroke-linecap="round"/></svg></span>',
@@ -991,9 +1001,10 @@ function buildWindLayer(obsList) {
   });
   var lm = L.marker(leak, { icon: leakIcon, zIndexOffset: 3000, keyboard: false });
   lm.bindTooltip("Titik bocor", { permanent: true, direction: "right", offset: [14, 0], className: "lab-leak-tip", interactive: false });
-  lm.bindPopup('<span class="ph-id">Titik bocor</span><div class="ph-round">' + esc(cfg.eventText) + '</div>' +
+  lm.bindPopup('<span class="ph-id">Titik bocor</span><div class="ph-round">' + esc(labEventText()) + '</div>' +
     '<div class="ph-notes">Lintang ' + cfg.leakLat.toFixed(6) + ', bujur ' + cfg.leakLon.toFixed(6) + '</div>' +
-    '<div class="ph-notes">Angin menuju ' + esc(compassName(cfg.windTo)) + ' (' + fmtDeg(cfg.windTo) + '); sektor ±' + cfg.cone + '° digambar sebagai area putus-putus.</div>',
+    '<div class="ph-notes">' + esc(windSummaryText()) + '; sektor ±' + cfg.cone + '° digambar sebagai area putus-putus.</div>' +
+    '<div class="ph-notes">' + esc(windSourceText()) + '</div>',
     { className: "point-hover-popup", maxWidth: 260 });
   lm.addTo(labMap.windLayer);
 }
@@ -1114,9 +1125,16 @@ function setView(v) {
 /* ---------------------------------------------------------------------
    Rendering
 --------------------------------------------------------------------- */
+function scrollWindActive() {
+  var row = document.querySelector(".windday .windrow-active");
+  var box = row && row.closest(".windday");
+  if (box) box.scrollTop = Math.max(0, row.offsetTop - box.clientHeight / 2 + row.offsetHeight / 2);
+}
+
 function renderLab() {
   applyViewChrome();
   renderLabDash();
+  scrollWindActive();
   renderLabControls();
   renderLabLegend();
   renderLabBottom();
@@ -1217,41 +1235,193 @@ function renderLabDash() {
     '</div></div>';
 }
 
+function labEventText() {
+  var cfg = state.labCfg;
+  return formatDateID(cfg.eventDate) + ", pukul " + cfg.eventTime.replace(":", ".") + " WITA";
+}
+function windHasSpeed() {
+  var m = state.labCfg.windMeta || {};
+  return m.source === "open-meteo" && typeof m.speedKmh === "number";
+}
+function windFromDeg() { return (state.labCfg.windTo + 180) % 360; }
+function windSummaryText() {
+  var cfg = state.labCfg;
+  var t = "Angin menuju " + compassName(cfg.windTo) + " (" + fmtDeg(cfg.windTo) + "), bertiup dari " + compassName(windFromDeg()) + " (" + fmtDeg(windFromDeg()) + ")";
+  if (windHasSpeed()) t += ", " + fmtNum(cfg.windMeta.speedKmh) + " km/jam";
+  return t;
+}
+function windSourceText() {
+  var m = state.labCfg.windMeta || {};
+  if (m.source === "open-meteo") return "Sumber: " + m.api + ", data jam " + m.hour.replace(":", ".") + " WITA tanggal " + formatDateID(m.date) + ".";
+  return "Sumber: input manual.";
+}
+function nearestHour(t) {
+  var m = /^(\d{1,2}):(\d{2})$/.exec(t || "");
+  if (!m) return "00:00";
+  var h = Number(m[1]) + (Number(m[2]) >= 30 ? 1 : 0);
+  if (h > 23) h = 23;
+  return ("0" + h).slice(-2) + ":00";
+}
+function windMetaMismatch() {
+  var cfg = state.labCfg, m = cfg.windMeta || {};
+  return m.source === "open-meteo" && (m.date !== cfg.eventDate || m.hour !== nearestHour(cfg.eventTime));
+}
+function windArrowSvg(deg, size) {
+  size = size || 40;
+  return '<svg class="windarrow" width="' + size + '" height="' + size + '" viewBox="0 0 40 40" aria-hidden="true">' +
+    '<circle cx="20" cy="20" r="18.5" fill="none" stroke="currentColor" stroke-opacity="0.25" stroke-width="1.5"/>' +
+    (size >= 30 ? '<text x="20" y="8.5" text-anchor="middle" font-size="7" font-weight="700" fill="currentColor" fill-opacity="0.6">U</text>' : '') +
+    '<g transform="rotate(' + deg + ' 20 20)"><path d="M20 9 L26 22 L20 18.6 L14 22 Z" fill="currentColor"/><line x1="20" y1="18" x2="20" y2="31" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></g></svg>';
+}
+
+function windInfoHtml() {
+  var cfg = state.labCfg, m = cfg.windMeta || {};
+  var html = '<div class="windinfo">' + windArrowSvg(cfg.windTo) + '<div class="windinfo-text">' +
+    '<div class="windinfo-main">Angin menuju <b>' + esc(compassName(cfg.windTo)) + ' (' + fmtDeg(cfg.windTo) + ')</b>, bertiup dari ' + esc(compassName(windFromDeg())) + ' (' + fmtDeg(windFromDeg()) + ')</div>';
+  if (m.source === "open-meteo") {
+    html += '<div class="windinfo-speed">Kecepatan <b>' + esc(fmtNum(m.speedKmh)) + ' km/jam</b> (' + esc(fmtNum(m.speedKmh / 3.6)) + ' m/s)' +
+      (typeof m.gustKmh === "number" ? ' · hembusan maksimum ' + esc(fmtNum(m.gustKmh)) + ' km/jam' : '') + ' · ketinggian 10 m</div>' +
+      '<div class="windinfo-src">Sumber: <b>' + esc(m.api) + '</b>, jam ' + esc(m.hour.replace(":", ".")) + ' WITA, ' + esc(formatDateID(m.date)) +
+      '. Titik grid model ' + esc(Number(m.gridLat).toFixed(3)) + ', ' + esc(Number(m.gridLon).toFixed(3)) + ', diambil ' + esc(formatDateID(String(m.fetchedAt).slice(0, 10))) + '.</div>';
+    if (windMetaMismatch()) html += '<div class="windinfo-warn">Data angin ini untuk ' + esc(formatDateID(m.date)) + ' jam ' + esc(m.hour.replace(":", ".")) + ', berbeda dari waktu kejadian (' + esc(labEventText()) + '). Ambil ulang data angin di pengaturan.</div>';
+  } else {
+    html += '<div class="windinfo-src">Sumber: <b>input manual</b>, kecepatan belum tercatat. Gunakan tombol Ambil data angin di pengaturan untuk memakai data terukur dari Open-Meteo pada jam kejadian.</div>';
+  }
+  return html + '</div></div>';
+}
+
+function windDayTableHtml() {
+  var cfg = state.labCfg, day = state.labUi.windDay;
+  if (!day || day.date !== cfg.eventDate) return "";
+  var active = (cfg.windMeta && cfg.windMeta.source === "open-meteo" && cfg.windMeta.date === day.date) ? cfg.windMeta.hour : nearestHour(cfg.eventTime);
+  return '<div class="labsettings-wide winddaywrap"><p class="windday-title">Angin per jam, ' + esc(formatDateID(day.date)) + ' (WITA). Klik satu jam untuk memakainya.</p>' +
+    '<div class="windday"><table class="labparamtable"><thead><tr><th>Jam</th><th>Dari</th><th>Menuju</th><th class="num">Kecepatan</th><th class="num">Hembusan</th></tr></thead><tbody>' +
+    day.rows.map(function (r) {
+      var ok = r.speed != null && r.dir != null;
+      var to = ok ? (r.dir + 180) % 360 : null;
+      return '<tr class="windrow' + (r.hour === active ? ' windrow-active' : '') + (ok ? '' : ' muted') + '"' + (ok ? ' data-action="lab-wind-hour" data-hour="' + esc(r.hour) + '"' : '') + '>' +
+        '<td><b>' + esc(r.hour.replace(":", ".")) + '</b></td>' +
+        '<td>' + (ok ? esc(compassName(r.dir)) + ' <span class="muted">' + fmtDeg(r.dir) + '</span>' : '–') + '</td>' +
+        '<td class="windto">' + (ok ? windArrowSvg(to, 18) + ' ' + esc(compassName(to)) : '–') + '</td>' +
+        '<td class="num">' + (ok ? esc(fmtNum(r.speed)) + ' km/jam' : '–') + '</td>' +
+        '<td class="num">' + (r.gust != null ? esc(fmtNum(r.gust)) + ' km/jam' : '–') + '</td></tr>';
+    }).join("") + '</tbody></table></div></div>';
+}
+
 function renderVerdictCard(an) {
   var cfg = state.labCfg;
+  var ui = state.labUi;
   var icons = { yes: "✓", no: "✕", na: "–" };
   var toneIcon = { strong: "◎", yes: "◎", partial: "◐", no: "○", none: "○" }[an.tone];
   var depthTxt = cfg.depth === "max" ? "nilai tertinggi antar kedalaman" : "kedalaman " + depthLabel(Number(cfg.depth));
   var html = '<div class="card labverdict">' +
     '<div class="verdict-kicker">' + LAB_ICONS.wind + ' Analisis Titik Bocor &amp; Arah Angin</div>' +
     '<h3 class="verdict verdict-' + an.tone + '"><span class="verdict-ico">' + toneIcon + '</span>' + esc(an.headline) + '</h3>' +
-    '<p class="verdict-basis">Dasar: ' + esc(labParamLabel(cfg.param)) + ', ' + esc(depthTxt) + ' · bocor ' + esc(cfg.eventText) + ' · angin menuju ' + esc(compassName(cfg.windTo)) + ' (' + fmtDeg(cfg.windTo) + ', sektor ±' + cfg.cone + '°)</p>' +
+    '<p class="verdict-basis">Dasar: ' + esc(labParamLabel(cfg.param)) + ', ' + esc(depthTxt) + ' · bocor ' + esc(labEventText()) + ' · sektor ±' + cfg.cone + '°</p>' +
+    windInfoHtml() +
     (an.summary ? '<p class="verdict-summary">' + esc(an.summary) + '</p>' : '') +
     '<ul class="evidence">' + an.ev.map(function (e) {
       return '<li class="ev ev-' + e.ok + '"><span class="ev-ico">' + icons[e.ok] + '</span><span>' + esc(e.text) + '</span></li>';
     }).join("") + '</ul>' +
     (an.caveat ? '<p class="verdict-note">' + LAB_ICONS.info + ' ' + esc(an.caveat) + '</p>' : '') +
     '<p class="verdict-note">Analisis bersifat indikatif dari posisi dan nilai titik uji; tidak memodelkan dispersi udara, limpasan permukaan, maupun pasang surut. Ganti parameter atau kedalaman di atas peta untuk menguji ulang.</p>' +
-    '<button type="button" class="linkbtn" data-action="lab-toggle-settings">' + (state.labUi.settingsOpen ? "Tutup pengaturan" : "Atur titik bocor &amp; arah angin") + '</button>';
-  if (state.labUi.settingsOpen) {
+    '<button type="button" class="linkbtn" data-action="lab-toggle-settings">' + (ui.settingsOpen ? "Tutup pengaturan" : "Atur waktu kejadian, titik bocor &amp; data angin") + '</button>';
+  if (ui.settingsOpen) {
     var dirOpts = COMPASS.map(function (name, i) {
       var deg = i * 22.5;
       return '<option value="' + deg + '"' + (Math.abs(cfg.windTo - deg) < 0.01 ? " selected" : "") + '>Menuju ' + name + ' (' + deg.toLocaleString("id-ID") + '°)</option>';
     }).join("");
-    if (COMPASS.every(function (n, i) { return Math.abs(cfg.windTo - i * 22.5) >= 0.01; })) dirOpts = '<option value="' + cfg.windTo + '" selected>' + fmtDeg(cfg.windTo) + '</option>' + dirOpts;
+    if (COMPASS.every(function (n, i) { return Math.abs(cfg.windTo - i * 22.5) >= 0.01; })) dirOpts = '<option value="' + cfg.windTo + '" selected>Menuju ' + esc(compassName(cfg.windTo)) + ' (' + fmtDeg(cfg.windTo) + ')</option>' + dirOpts;
     html += '<div class="labsettings">' +
-      '<div class="field"><label>Lintang titik bocor</label><input type="number" step="any" value="' + cfg.leakLat + '" data-field="lab-cfg-leakLat"/></div>' +
-      '<div class="field"><label>Bujur titik bocor</label><input type="number" step="any" value="' + cfg.leakLon + '" data-field="lab-cfg-leakLon"/></div>' +
-      '<div class="field"><label>Arah angin bertiup</label><select data-field="lab-cfg-windTo">' + dirOpts + '</select></div>' +
-      '<div class="field"><label>Lebar sektor angin</label><select data-field="lab-cfg-cone">' + [22.5, 30, 45, 60, 90].map(function (c) {
+      '<div class="field"><label for="lc-date">Tanggal kejadian</label><input id="lc-date" type="date" value="' + esc(cfg.eventDate) + '" data-field="lab-cfg-eventDate"/></div>' +
+      '<div class="field"><label for="lc-time">Jam kejadian (WITA)</label><input id="lc-time" type="time" step="3600" value="' + esc(cfg.eventTime) + '" data-field="lab-cfg-eventTime"/></div>' +
+      '<div class="field"><label for="lc-lat">Lintang titik bocor</label><input id="lc-lat" type="number" step="any" value="' + cfg.leakLat + '" data-field="lab-cfg-leakLat"/></div>' +
+      '<div class="field"><label for="lc-lon">Bujur titik bocor</label><input id="lc-lon" type="number" step="any" value="' + cfg.leakLon + '" data-field="lab-cfg-leakLon"/></div>' +
+      '<div class="labsettings-wide windfetch">' +
+      '<button type="button" class="btn btn-primary" data-action="lab-fetch-wind"' + (ui.windLoading ? ' disabled' : '') + '>' + LAB_ICONS.wind + ' ' + (ui.windLoading ? 'Mengambil data angin…' : 'Ambil data angin dari Open-Meteo') + '</button>' +
+      '<span class="windfetch-note">Data per jam pada tanggal kejadian di lokasi titik bocor: kecepatan dan arah angin pada ketinggian 10 m.</span>' +
+      (ui.windError ? '<p class="formerror">' + esc(ui.windError) + '</p>' : '') +
+      '</div>' +
+      windDayTableHtml() +
+      '<div class="field"><label for="lc-dir">Arah angin (manual)</label><select id="lc-dir" data-field="lab-cfg-windTo">' + dirOpts + '</select></div>' +
+      '<div class="field"><label for="lc-cone">Lebar sektor angin</label><select id="lc-cone" data-field="lab-cfg-cone">' + [22.5, 30, 45, 60, 90].map(function (c) {
         return '<option value="' + c + '"' + (cfg.cone === c ? " selected" : "") + '>±' + c.toLocaleString("id-ID") + '°</option>';
       }).join("") + '</select></div>' +
-      '<div class="field labsettings-wide"><label>Keterangan kejadian</label><input type="text" value="' + esc(cfg.eventText) + '" data-field="lab-cfg-eventText"/></div>' +
       '<button type="button" class="btn" data-action="lab-reset-cfg">Pulihkan bawaan</button>' +
       '</div>';
   }
   html += '</div>';
   return html;
+}
+
+/* ---- Wind data from Open-Meteo ---- */
+function parseOpenMeteo(j, date) {
+  var h = j && j.hourly;
+  if (!h || !Array.isArray(h.time) || !Array.isArray(h.wind_speed_10m) || !Array.isArray(h.wind_direction_10m)) return null;
+  var rows = [];
+  h.time.forEach(function (t, i) {
+    if (String(t).slice(0, 10) !== date) return;
+    rows.push({
+      hour: String(t).slice(11, 16),
+      speed: typeof h.wind_speed_10m[i] === "number" ? h.wind_speed_10m[i] : null,
+      dir: typeof h.wind_direction_10m[i] === "number" ? h.wind_direction_10m[i] : null,
+      gust: h.wind_gusts_10m && typeof h.wind_gusts_10m[i] === "number" ? h.wind_gusts_10m[i] : null
+    });
+  });
+  var valid = rows.filter(function (r) { return r.speed != null && r.dir != null; });
+  if (!valid.length) return null;
+  return { date: date, rows: rows, lat: j.latitude, lon: j.longitude, fetchedAt: new Date().toISOString() };
+}
+
+function labFetchWind() {
+  var cfg = state.labCfg, ui = state.labUi;
+  var date = cfg.eventDate;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { showToast("warn", "Isi tanggal kejadian terlebih dahulu."); return; }
+  if (!window.fetch) { ui.windError = "Browser ini tidak mendukung pengambilan data."; renderLabDash(); return; }
+  ui.windLoading = true; ui.windError = "";
+  renderLabDash(); renderLabCharts();
+  var qs = "?latitude=" + cfg.leakLat.toFixed(4) + "&longitude=" + cfg.leakLon.toFixed(4) +
+    "&start_date=" + date + "&end_date=" + date +
+    "&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kmh&timezone=Asia%2FMakassar";
+  function attempt(i, lastMsg) {
+    if (i >= WIND_SOURCES.length) return Promise.reject(new Error(lastMsg || "data tidak tersedia"));
+    return fetch(WIND_SOURCES[i].url + qs).then(function (res) {
+      return res.json().then(function (j) {
+        var day = res.ok ? parseOpenMeteo(j, date) : null;
+        if (!day) return attempt(i + 1, (j && j.reason) ? j.reason : "data untuk tanggal ini belum tersedia");
+        day.api = WIND_SOURCES[i].label;
+        return day;
+      }, function () { return attempt(i + 1, "jawaban server tidak dapat dibaca"); });
+    }, function () { return attempt(i + 1, "tidak dapat terhubung ke Open-Meteo"); });
+  }
+  attempt(0, "").then(function (day) {
+    ui.windLoading = false;
+    if (state.labCfg.eventDate !== date) { renderLabDash(); return; }
+    ui.windDay = day;
+    labApplyWindHour(nearestHour(cfg.eventTime), true);
+  }).catch(function (err) {
+    ui.windLoading = false;
+    ui.windError = "Gagal mengambil data angin: " + err.message + ". Periksa koneksi internet dan tanggal kejadian; data biasanya baru tersedia beberapa hari setelah tanggal tersebut.";
+    renderLabDash(); renderLabCharts();
+  });
+}
+
+function labApplyWindHour(hour, fromFetch) {
+  var cfg = state.labCfg, day = state.labUi.windDay;
+  if (!day) return;
+  var row = null;
+  day.rows.forEach(function (r) { if (r.hour === hour) row = r; });
+  if (!row || row.speed == null || row.dir == null) {
+    showToast("warn", "Data angin jam " + hour.replace(":", ".") + " tidak tersedia. Pilih jam lain pada tabel.");
+    render();
+    return;
+  }
+  cfg.eventTime = hour;
+  cfg.windTo = Math.round(((row.dir + 180) % 360) * 10) / 10;
+  cfg.windMeta = { source: "open-meteo", api: day.api, date: day.date, hour: hour, speedKmh: row.speed, dirFrom: row.dir, gustKmh: row.gust, gridLat: day.lat, gridLon: day.lon, fetchedAt: day.fetchedAt };
+  persistLabCfg();
+  render();
+  showToast("success", (fromFetch ? "Data angin Open-Meteo dipakai: " : "Jam diganti: ") + hour.replace(":", ".") + " WITA, angin dari " + compassName(row.dir) + " " + fmtNum(row.speed) + " km/jam.");
 }
 
 function renderLabControls() {
@@ -2181,7 +2351,7 @@ function labExportExcel() {
     ["5. Hasil di bawah batas deteksi ditulis dengan tanda <, misalnya <0,5. Kosongkan parameter yang tidak diuji."],
     ["6. Kolom Klasifikasi, Pengelolaan, dan Status Air dihitung ulang otomatis oleh aplikasi saat impor."],
     [],
-    [{ v: "Diekspor " + formatDateID(new Date().toISOString().slice(0, 10)) + " dari Peta Sampling Oil Spill. Titik bocor: " + state.labCfg.eventText + " (" + state.labCfg.leakLat.toFixed(6) + ", " + state.labCfg.leakLon.toFixed(6) + ").", s: S.note }]
+    [{ v: "Diekspor " + formatDateID(new Date().toISOString().slice(0, 10)) + " dari Peta Sampling Oil Spill. Titik bocor: " + labEventText() + " (" + state.labCfg.leakLat.toFixed(6) + ", " + state.labCfg.leakLon.toFixed(6) + "). " + windSummaryText() + ". " + windSourceText(), s: S.note }]
   ];
 
   var blob = XlsxIO.buildWorkbook([
@@ -2530,9 +2700,11 @@ function labOnAction(action, el, e) {
   else if (action === "lab-toggle-surface") { cfg.showSurface = !cfg.showSurface; persistLabCfg(); render(); }
   else if (action === "lab-toggle-wind") { cfg.showWind = !cfg.showWind; persistLabCfg(); render(); }
   else if (action === "lab-toggle-labels") { cfg.showLabels = !cfg.showLabels; persistLabCfg(); render(); }
-  else if (action === "lab-toggle-settings") { state.labUi.settingsOpen = !state.labUi.settingsOpen; renderLabDash(); renderLabCharts(); }
+  else if (action === "lab-toggle-settings") { state.labUi.settingsOpen = !state.labUi.settingsOpen; renderLabDash(); scrollWindActive(); renderLabCharts(); }
   else if (action === "lab-reset-cfg") {
-    ["leakLat", "leakLon", "windTo", "cone", "eventText"].forEach(function (k) { cfg[k] = LAB_DEFAULT_CFG[k]; });
+    ["leakLat", "leakLon", "windTo", "cone", "eventDate", "eventTime"].forEach(function (k) { cfg[k] = LAB_DEFAULT_CFG[k]; });
+    cfg.windMeta = {};
+    state.labUi.windDay = null; state.labUi.windError = "";
     persistLabCfg(); render();
   }
   else if (action === "lab-toggle-allrows") { state.labUi.showAllRows = !state.labUi.showAllRows; renderLabBottom(); renderLabCharts(); }
@@ -2549,6 +2721,8 @@ function labOnAction(action, el, e) {
   else if (action === "lab-close-modal") { state.labUi.form = null; state.labUi.importPreview = null; renderLabModal(); }
   else if (action === "lab-modal-backdrop") { if (e.target === el) { state.labUi.form = null; state.labUi.importPreview = null; renderLabModal(); } }
   else if (action === "lab-export") labExportExcel();
+  else if (action === "lab-fetch-wind") labFetchWind();
+  else if (action === "lab-wind-hour") labApplyWindHour(el.getAttribute("data-hour"), false);
   else if (action === "lab-import-apply") labApplyImport();
 }
 
@@ -2585,9 +2759,19 @@ function labOnChange(field, t) {
     if (!ok) { showToast("warn", "Koordinat tidak valid."); t.value = cfg[k]; return; }
     cfg[k] = n; persistLabCfg(); render(); return;
   }
-  if (field === "lab-cfg-windTo") { cfg.windTo = Number(t.value) || 0; persistLabCfg(); render(); return; }
+  if (field === "lab-cfg-windTo") { cfg.windTo = Number(t.value) || 0; cfg.windMeta = { source: "manual" }; persistLabCfg(); render(); return; }
   if (field === "lab-cfg-cone") { cfg.cone = Number(t.value) || 45; persistLabCfg(); render(); return; }
-  if (field === "lab-cfg-eventText") { cfg.eventText = t.value.trim() || LAB_DEFAULT_CFG.eventText; persistLabCfg(); render(); return; }
+  if (field === "lab-cfg-eventDate") {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(t.value)) { t.value = cfg.eventDate; return; }
+    cfg.eventDate = t.value; state.labUi.windError = ""; persistLabCfg(); render(); return;
+  }
+  if (field === "lab-cfg-eventTime") {
+    if (!/^\d{2}:\d{2}$/.test(t.value)) { t.value = cfg.eventTime; return; }
+    cfg.eventTime = t.value;
+    var day = state.labUi.windDay;
+    if (day && day.date === cfg.eventDate && cfg.windMeta && cfg.windMeta.source === "open-meteo") { labApplyWindHour(nearestHour(t.value), false); return; }
+    persistLabCfg(); render(); return;
+  }
   if (field === "lab-tbl-sort") { ui.tblSort = t.value; var body = document.getElementById("labTableBody"); if (body) body.innerHTML = labTableHtml(); return; }
   if (!ui.form) return;
   var d = ui.form.draft;
