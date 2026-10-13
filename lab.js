@@ -2615,7 +2615,26 @@ function labOnResize() {
   labResizeTimer = setTimeout(function () { if (state.view === "lab") renderLabCharts(); }, 150);
 }
 
+// If a browser serves a stale cached app.js/styles.css next to a newer index.html,
+// the view tabs never get wired up; offer a one-tap reload instead of a dead page.
+window.addEventListener("load", function () {
+  setTimeout(function () {
+    if (window.__labBooted) return;
+    var bar = document.createElement("div");
+    bar.setAttribute("style", "position:fixed;left:12px;right:12px;bottom:12px;z-index:2000;background:#F2A93C;color:#2A1A00;font:600 13px system-ui,sans-serif;padding:12px 14px;border-radius:10px;display:flex;gap:12px;align-items:center;justify-content:space-between;box-shadow:0 10px 24px rgba(0,0,0,.35)");
+    bar.innerHTML = '<span>Aplikasi baru saja diperbarui. Muat ulang halaman untuk memakai versi terbaru.</span>';
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Muat ulang";
+    btn.setAttribute("style", "border:none;background:#2A1A00;color:#fff;font:700 12px system-ui,sans-serif;padding:8px 12px;border-radius:8px;cursor:pointer");
+    btn.onclick = function () { location.reload(); };
+    bar.appendChild(btn);
+    document.body.appendChild(bar);
+  }, 1500);
+});
+
 function labBoot() {
+  window.__labBooted = true;
   var tl = document.getElementById("viewTabLabIcon"), tp = document.getElementById("viewTabProgressIcon");
   if (tl) tl.innerHTML = LAB_ICONS.flask;
   if (tp) tp.innerHTML = LAB_ICONS.progress;

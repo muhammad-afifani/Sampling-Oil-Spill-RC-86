@@ -89,4 +89,6 @@ Jika suatu saat ada foto drone baru untuk menggantikan citra ini, sebaiknya guna
 
 Situs ini disajikan dari cabang `claude/stoic-cannon-ew2fbf`. Bila halaman GitHub Pages belum juga muncul, periksa pengaturannya di repositori GitHub, pada menu Settings kemudian Pages, pastikan bagian Source diatur ke Deploy from branch, dengan cabang `claude/stoic-cannon-ew2fbf` dan folder root (/) dipilih, lalu simpan. Setelah tersimpan, GitHub biasanya butuh waktu singkat sebelum halamannya bisa diakses.
 
+Setiap kali `styles.css`, `app.js`, `lab.js`, atau `lab-xlsx.js` diubah, naikkan juga kode versi `?v=...` pada tautan berkas tersebut di `index.html`. GitHub Pages membiarkan browser menyimpan salinan lama berkas CSS dan JavaScript beberapa menit; tanpa kode versi baru, browser bisa memakai campuran berkas lama dan baru sehingga tombol tidak berfungsi. Bila hal itu tetap terjadi, aplikasi menampilkan pesan untuk memuat ulang halaman.
+
 Berkas ini hanya bisa dijalankan lewat server seperti GitHub Pages, bukan dengan membuka `index.html` langsung dari komputer, karena browser memblokir sebagian pemuatan berkas saat dibuka dengan cara tersebut.
