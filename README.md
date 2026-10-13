@@ -8,6 +8,8 @@ Repositori ini menyimpan data sumber dan aplikasi peta untuk pemantauan sampling
 index.html                 Halaman utama aplikasi
 styles.css                 Tampilan aplikasi, termasuk mode gelap dan terang
 app.js                      Data titik dan grid, serta seluruh logika aplikasi
+lab.js                      Hasil pemantauan lab: data, klasifikasi TK, analisis arah angin, peta, grafik, edit
+lab-xlsx.js                 Baca dan tulis berkas Excel (.xlsx) tanpa pustaka luar
 vendor/leaflet/             Pustaka peta Leaflet, disalin secara lokal
 assets/basemap-drone.jpg    Citra udara drone sebagai latar peta
 
@@ -61,6 +63,21 @@ Aplikasi ini disajikan langsung dari `index.html` di akar repositori lewat GitHu
 - Tautan "Tentang & Dukung Pengembang" di footer menampilkan foto tim pembuat aplikasi ini beserta kode QRIS bila ingin memberi dukungan dana untuk pengembangannya
 
 Folder `app/project/` menyimpan versi sebelumnya dari aplikasi ini, yang dibuat sebagai Claude Artifact bertipe Design. Versi tersebut masih dapat dibuka lewat Claude, tetapi tidak dapat menampilkan citra udara karena keterbatasan platform tersebut, sehingga petanya masih berupa gambar skematik. Berkas ini disimpan sebagai riwayat, bukan versi yang disarankan untuk dipakai.
+
+## Hasil pemantauan laboratorium
+
+Tab **Hasil Pemantauan Lab** (di bawah judul halaman) menampilkan hasil uji laboratorium. Data bawaannya adalah batch pertama (76 sampel: 64 tanah pada kedalaman 30 dan 60 cm di 32 titik, 8 sedimen, dan 4 air permukaan) dari LHP BCL.LHP.IX.26278, PT Bestari Casa Laboratory. Koordinat pada berkas hasil lab tidak dipakai; setiap sampel ditempatkan pada titik sampling yang sama di aplikasi ini (misalnya G6.3 menjadi GRID6.3), dan sampel air ditempatkan pada area grid sedimennya.
+
+- **Klasifikasi** tanah dan sedimen dihitung otomatis dari ambang TK-A, TK-B, dan TK-C (PP 22/2021) untuk TPH C6-C9, TPH C10-C36, benzena, etilbenzena, toluena, dan xilena, dengan parameter terberat menentukan kelasnya: di bawah TK-C (Tanah Pelapis Dasar), TK-C sampai TK-B (Non B3), TK-B sampai TK-A (LB3 Kategori 2), dan di atas TK-A (LB3 Kategori 1). Hasilnya sama persis dengan kolom Klasifikasi pada berkas Excel asli. Sampel yang melebihi TK-C dihitung sebagai tercemar.
+- **Air permukaan** dibandingkan dengan baku mutu air laut untuk biota (PP 22/2021 Lampiran VIII): TPH 0,02 mg/L, PAH 0,003 mg/L, minyak dan lemak 1 mg/L. Bila batas deteksi lab lebih tinggi dari baku mutu (TPH <1 dan PAH <0,05 pada batch pertama), hasilnya ditandai belum dapat disimpulkan, bukan memenuhi.
+- **Peta sebaran**: gradasi warna hasil interpolasi antar titik uji di dalam area grid yang memiliki sampel, makin pudar makin jauh dari titik uji. Tiap titik digambar sebagai lingkaran berlapis (atas 30 cm, bawah 60 cm). Parameter, kedalaman (30 cm, 60 cm, atau nilai tertinggi), dan batch dapat dipilih di atas peta. Titik bocor (−0,8560929; 117,2652896; 28 Agustus 2026 sekitar pukul 15.00 WITA) ditampilkan beserta sektor arah angin (bawaan: menuju utara, ±45°) dan lingkaran jarak 50, 100, 150 m.
+- **Analisis titik bocor dan arah angin** memeriksa tiga hal untuk parameter dan kedalaman yang dipilih: apakah titik yang melebihi TK-C berada di dalam sektor arah angin, ke arah mana pusat sebaran konsentrasi berada dari titik bocor, dan apakah konsentrasi menurun menjauhi titik bocor (korelasi peringkat Spearman dengan uji permutasi). Untuk TPH C10-C36 batch pertama, kelima titik yang melebihi TK-C (di Grid 6, 5, 2, dan 4) berada di sektor arah angin dan pusat sebarannya sekitar 56 m ke arah utara-timur laut dari titik bocor, sehingga konsisten dengan dugaan kondensat terbawa angin ke utara. Pola penurunan terhadap jarak belum terlihat jelas secara statistik, dan sebagian besar titik uji memang berada di sisi hilir angin, sehingga sampel tambahan di sisi hulu angin akan memperkuat kesimpulan. Analisis ini indikatif dan tidak memodelkan dispersi udara, limpasan, maupun pasang surut. Titik bocor dan arah angin dapat diubah lewat Atur titik bocor & arah angin.
+- **Grafik**: klasifikasi per lapisan, konsentrasi per titik dan kedalaman terhadap ambang TK, jarak dari titik bocor terhadap konsentrasi, profil kedalaman per titik, serta ringkasan per area grid dan tabel air permukaan.
+- **Input dan edit manual**: tombol Tambah Hasil Uji, atau klik baris pada tabel Data Hasil Uji untuk mengedit dan menghapus. Nilai di bawah batas deteksi ditulis dengan tanda <, misalnya <0,5; formulir menampilkan pratinjau status tiap nilai saat diketik.
+- **Impor dan ekspor Excel**: Ekspor Excel mengunduh seluruh hasil (sheet Hasil per Sampel, Baku Mutu, dan Petunjuk), yang bisa diedit lalu diimpor kembali. Impor Excel menerima berkas hasil lab dengan kolom Kode Sampel (misalnya berkas batch berikutnya dengan format yang sama seperti batch pertama), menampilkan pratinjau berapa sampel baru, diperbarui, sama, atau dilewati beserta alasannya, lalu baru menerapkannya setelah dikonfirmasi. Sampel dikenali dari Kode Sampel, jadi mengimpor ulang berkas yang sama tidak menggandakan data.
+- Data hasil lab ikut tersimpan di perangkat, ikut dalam Ekspor/Impor JSON, dan ikut tersinkron dari berkas JSON di repositori seperti data progres sampling.
+
+Catatan satuan: LHP menuliskan satuan mg/L untuk sampel tanah dan sedimen, sedangkan ambang TK dalam mg/kg. Aplikasi menampilkan satuan sesuai LHP dan membandingkan angkanya langsung dengan ambang TK, sama seperti kolom Klasifikasi pada berkas asli.
 
 ## Tentang citra latar peta
 

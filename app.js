@@ -351,7 +351,8 @@ function allBounds() {
 }
 
 function addPointMarker(p) {
-  var marker = L.circleMarker([p.lat, p.lon], { radius: 5.5, weight: 1.8 }).addTo(map);
+  var marker = L.circleMarker([p.lat, p.lon], { radius: 5.5, weight: 1.8 });
+  if (state.view !== "lab") marker.addTo(map);
   marker.on("click", function (e) {
     if (state.pickMode) { onMapClick(e); return; }
     selectPoint(p.id);
@@ -530,6 +531,11 @@ function initMap() {
     poly.bindPopup("", { closeButton: true, className: "grid-info-popup" });
     poly.on("click", function (e) {
       if (state.pickMode) { onMapClick(e); return; }
+      if (state.view === "lab") {
+        poly.setPopupContent(labGridPopupHtml(g));
+        poly.openPopup(e.latlng);
+        return;
+      }
       selectGrid(g.id);
       var stats = gridStats(g, state.round);
       var html = '<div class="gp-title">' + esc(g.label) + '</div>' +
@@ -575,6 +581,7 @@ function matchesFilter(r) {
 }
 
 function updateMapStyles() {
+  if (state.view === "lab") { labUpdateMap(); return; }
   var round = state.round;
   var q = (state.search || "").trim().toLowerCase();
 
@@ -896,7 +903,9 @@ function exportJson() {
       totalGrids: GRIDS.length,
       reports: reportsCopy,
       gridNotes: state.gridNotes,
-      customPoints: state.customPoints
+      customPoints: state.customPoints,
+      labSamples: labExportForJson(),
+      labConfig: state.labCfg
     };
     var blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
@@ -1735,6 +1744,7 @@ function mergeImport(data, opts) {
     state.reports[pid] = cur;
   });
   state.gridNotes = Object.assign({}, state.gridNotes, incomingNotes);
+  updated += labMergeSamples(data && data.labSamples);
 
   Promise.all(photoWrites).then(function () { finishImport(updated, addedPoints, false, opts); }).catch(function () {
     finishImport(updated, addedPoints, true, opts);
@@ -1829,6 +1839,7 @@ function toggleTheme() {
   state.theme = state.theme === "light" ? "dark" : "light";
   localStorage.setItem(THEME_KEY, state.theme);
   applyTheme();
+  renderLabCharts();
 }
 
 /* ---------------------------------------------------------------------
@@ -1864,6 +1875,8 @@ function applyLabelVisibility() {
   }
   var gridBtn = document.getElementById("toggleGridLabels");
   if (gridBtn) gridBtn.className = "labeltoggle" + (state.showGridLabels ? " active" : "");
+  var labGridBtn = document.getElementById("labToggleGridLabels");
+  if (labGridBtn) labGridBtn.className = "labeltoggle" + (state.showGridLabels ? " active" : "");
   var pointBtn = document.getElementById("togglePointLabels");
   if (pointBtn) pointBtn.className = "labeltoggle" + (state.showPointLabels ? " active" : "");
   var fillBtn = document.getElementById("toggleGridFill");
@@ -1964,6 +1977,8 @@ function esc(s) {
    Render: dashboard, toolbar, bottom panel
 --------------------------------------------------------------------- */
 function render() {
+  if (state.view === "lab") { renderLab(); return; }
+  applyViewChrome();
   var round = state.round;
   var q = (state.search || "").trim().toLowerCase();
 
@@ -2412,6 +2427,8 @@ function onAction(e) {
   var action = el.getAttribute("data-action");
   var id = el.getAttribute("data-id");
 
+  if (action.indexOf("lab-") === 0) { labOnAction(action, el, e); return; }
+  if (action === "set-view") { setView(el.getAttribute("data-view")); return; }
   if (action === "select-point") selectPoint(id);
   else if (action === "select-grid") selectGrid(id);
   else if (action === "back-grid") backToGrid();
@@ -2500,6 +2517,7 @@ function onInput(e) {
   var field = t.getAttribute && t.getAttribute("data-field");
   if (t.id === "searchInput") { state.search = t.value; render(); return; }
   if (!field) return;
+  if (field.indexOf("lab-") === 0) { labOnInput(field, t); return; }
 
   if (field === "newcode") { state.newPointDraft.code = t.value; return; }
   if (field === "newlat") { state.newPointDraft.lat = parseCoord(t.value); return; }
@@ -2534,7 +2552,9 @@ function onChange(e) {
   var t = e.target;
   var field = t.getAttribute && t.getAttribute("data-field");
   if (t.id === "importInput") { handleImportInput(e); return; }
+  if (t.id === "labImportInput") { labHandleImportInput(e); return; }
   if (!field) return;
+  if (field.indexOf("lab-") === 0) { labOnChange(field, t); return; }
 
   if (field === "newtype") { state.newPointDraft.type = t.value; return; }
   if (field === "newgrid") { state.newPointDraft.gridId = t.value || ""; return; }
@@ -2590,6 +2610,7 @@ function boot() {
 
   applyTheme();
   initMap();
+  labBoot();
   applyLabelVisibility();
   var actualBtn = document.getElementById("toggleActual");
   if (actualBtn) actualBtn.className = "labeltoggle" + (state.showActual ? " active" : "");

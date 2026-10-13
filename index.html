@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<script>(function(){var v="lab";try{var h=(location.hash||"").toLowerCase();v=h==="#lab"?"lab":h==="#progres"?"progress":(localStorage.getItem("oilspill_view")==="progress"?"progress":"lab");}catch(e){}document.body.className=v==="progress"?"view-progress":"view-lab";})();</script>
 <div class="app">
 
   <header class="topbar">
@@ -19,7 +20,7 @@
         <p>Pemetaan titik sampling air dan sedimen pada masa sebelum dan sesudah pemulihan lahan</p>
       </div>
       <div class="metachip" id="metaChip">73 titik pada 17 area grid</div>
-      <div class="roundswitch">
+      <div class="roundswitch progress-only">
         <button type="button" id="roundBeforeBtn" class="roundbtn before active" data-action="set-round" data-round="before">Before Recovery</button>
         <button type="button" id="roundAfterBtn" class="roundbtn after" data-action="set-round" data-round="after">After Recovery</button>
       </div>
@@ -31,7 +32,16 @@
 
   <div id="syncBanner" class="syncbanner" style="display:none"></div>
 
-  <section class="dashboard">
+  <nav class="viewtabs" aria-label="Tampilan">
+    <div class="wrap viewtabs-inner" role="tablist">
+      <button type="button" class="viewtab" id="viewTabProgress" role="tab" data-action="set-view" data-view="progress"><span class="viewtab-ico" id="viewTabProgressIcon"></span>Progres Sampling</button>
+      <button type="button" class="viewtab" id="viewTabLab" role="tab" data-action="set-view" data-view="lab"><span class="viewtab-ico" id="viewTabLabIcon"></span>Hasil Pemantauan Lab<span class="viewtab-count" id="viewTabLabCount"></span></button>
+    </div>
+  </nav>
+
+  <section class="labdash lab-only" id="labDash"></section>
+
+  <section class="dashboard progress-only">
     <div class="wrap">
       <div class="dash-grid">
         <div class="kpi">
@@ -107,7 +117,7 @@
     </div>
   </section>
 
-  <section class="toolbar">
+  <section class="toolbar progress-only">
     <div class="wrap toolbar-row">
       <div class="searchwrap">
         <div class="searchbox">
@@ -138,10 +148,10 @@
     <section class="mapsection">
       <div class="mapsection-head">
         <div class="mapsection-head-top">
-          <h2>Peta Grid Sampling</h2>
+          <h2 id="mapTitle">Peta Grid Sampling</h2>
           <div class="headtop-right">
-            <span class="roundtag" id="roundTag">Before Recovery</span>
-            <button type="button" class="btn" data-action="export-map-pdf" title="Cetak peta beserta legenda dan informasi koordinat sebagai PDF">Ekspor PDF</button>
+            <span class="roundtag progress-only" id="roundTag">Before Recovery</span>
+            <button type="button" class="btn progress-only" data-action="export-map-pdf" title="Cetak peta beserta legenda dan informasi koordinat sebagai PDF">Ekspor PDF</button>
             <button type="button" class="iconbtn" data-action="toggle-fullscreen" id="fullscreenBtn" aria-label="Tampilkan peta layar penuh" title="Tampilkan peta layar penuh">
               <span id="fullscreenIcon"></span>
             </button>
@@ -149,7 +159,7 @@
         </div>
         <div class="mapsection-head-bottom">
           <span class="maphint">Gulir untuk memperbesar, seret untuk menggeser, cubit layar untuk perangkat sentuh</span>
-          <div class="labeltoggles">
+          <div class="labeltoggles progress-only">
             <button type="button" id="toggleGridFill" class="labeltoggle active" data-action="toggle-grid-fill" title="Nyalakan atau matikan isian warna area grid, hanya garis batas bila dimatikan">Isi Grid</button>
             <button type="button" id="toggleGridLabels" class="labeltoggle active" data-action="toggle-grid-labels">Nama Grid</button>
             <button type="button" id="togglePointLabels" class="labeltoggle active" data-action="toggle-point-labels">Nama Titik</button>
@@ -157,12 +167,13 @@
             <button type="button" id="toggleBasemapOnly" class="labeltoggle" data-action="toggle-basemap-only" title="Sembunyikan seluruh tampilan grid, titik, label, dan legenda, hanya menyisakan citra dasar">Hanya Basemap</button>
           </div>
         </div>
+        <div class="labcontrols lab-only" id="labControls"></div>
       </div>
       <div class="mapstage">
         <div id="map"></div>
         <div class="pickbanner" id="pickBanner" style="display:none"></div>
       </div>
-      <div class="legend">
+      <div class="legend progress-only">
         <div class="legend-item"><span class="legend-swatch" style="background:rgba(242,169,60,0.35);border:1px solid #F2A93C"></span>Grid belum mulai disampling</div>
         <div class="legend-item"><span class="legend-swatch" style="background:rgba(47,217,199,0.35);border:1px solid #2FD9C7"></span>Grid sedang berjalan</div>
         <div class="legend-item"><span class="legend-swatch" style="background:rgba(59,212,136,0.4);border:1px solid #3BD488"></span>Grid tuntas</div>
@@ -171,6 +182,7 @@
         <div class="legend-item"><span class="legend-dot" style="background:#F2635C"></span>Titik dengan kendala</div>
         <div class="legend-item"><span class="legend-dot" style="background:#2F6FED;border:2px solid #fff;box-shadow:0 0 5px 1px rgba(255,214,0,0.8)"></span>Lokasi sampling aktual</div>
       </div>
+      <div class="lablegend lab-only" id="labLegend"></div>
     </section>
 
     <section class="bottompanel" id="bottomPanel"></section>
@@ -178,7 +190,7 @@
 
   <footer class="foot">
     <div class="wrap">
-      <div class="foot-legend">
+      <div class="foot-legend progress-only">
         <div class="legend-item"><span class="legend-swatch" style="background:rgba(242,169,60,0.35);border:1px solid #F2A93C"></span>Belum disampling</div>
         <div class="legend-item"><span class="legend-swatch" style="background:rgba(47,217,199,0.35);border:1px solid #2FD9C7"></span>Sebagian selesai</div>
         <div class="legend-item"><span class="legend-swatch" style="background:rgba(59,212,136,0.4);border:1px solid #3BD488"></span>Tuntas</div>
@@ -196,8 +208,12 @@
 <div id="aboutRoot"></div>
 <div id="qrisZoomRoot"></div>
 <div id="printSheetRoot" class="print-only"></div>
+<div id="modalRoot"></div>
+<div id="vizTip" class="viztip" role="tooltip"></div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="app.js"></script>
+<script src="lab-xlsx.js"></script>
+<script src="lab.js"></script>
 </body>
 </html>
