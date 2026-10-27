@@ -261,7 +261,8 @@ var state = {
   gridNotes: {},
   customPoints: [],
   dateFilter: { mode: "all", date: "", from: "", to: "" },
-  exportDlg: null
+  exportDlg: null,
+  pdfDlg: null
 };
 
 (function loadState() {
@@ -925,15 +926,24 @@ function openLightbox(photoId) {
 }
 
 /* ---------------------------------------------------------------------
-   JSON export. Photos can be included at original quality, re-encoded
-   smaller ("ringkas"), or left out entirely so the file stays under the
-   25 MB browser-upload limit of GitHub. Photo entries are always kept
-   (id, time, GPS) so a device that already holds the photo keeps it.
+   JSON export. GitHub's browser upload rejects files over 25 MB, so the
+   default "ringkas" mode re-encodes photos and, when the result would
+   still be too big, keeps lowering their resolution until one file
+   fits. "Dipecah" keeps the ringkas quality and instead spreads photos
+   over extra -foto-N files (each under the limit) next to a data file
+   that lists them, so import and repo sync can fetch only what a device
+   is missing. Photo entries are always kept (id, time, GPS) so a device
+   that already holds the photo keeps it.
 --------------------------------------------------------------------- */
 var EXPORT_MODE_KEY = "oilspill_export_mode";
 var COMPACT_PHOTO_DIM = 1024;
 var COMPACT_PHOTO_QUALITY = 0.55;
+var MIN_AUTO_PHOTO_DIM = 320;
 var GITHUB_UPLOAD_LIMIT = 25 * 1024 * 1024;
+var EXPORT_TARGET_BYTES = 24 * 1024 * 1024;
+var SPLIT_PART_BYTES = 23 * 1024 * 1024;
+var EXPORT_MODES = ["compact", "split", "full", "none"];
+var PHOTO_PART_RE = /-foto-\d+\.json$/i;
 
 function allPhotoRefs() {
   var refs = [];
@@ -968,7 +978,7 @@ function exportBasePayload() {
 function openExportDialog() {
   var mode = "compact";
   try { mode = localStorage.getItem(EXPORT_MODE_KEY) || "compact"; } catch (e) {}
-  if (["compact", "full", "none"].indexOf(mode) === -1) mode = "compact";
+  if (EXPORT_MODES.indexOf(mode) === -1) mode = "compact";
   state.exportDlg = { mode: mode, stats: null, busy: false, progress: "" };
   renderExportDialog();
   var refs = allPhotoRefs();
@@ -999,7 +1009,12 @@ function closeExportDialog() {
 function exportEstimate(mode, st) {
   if (!st) return null;
   if (mode === "none") return st.base;
-  return st.base + Math.round((mode === "full" ? st.bytes : st.compactBytes) * 1.34);
+  var est = st.base + Math.round((mode === "full" ? st.bytes : st.compactBytes) * 1.34);
+  return mode === "compact" ? Math.min(est, EXPORT_TARGET_BYTES) : est;
+}
+
+function splitPartCount(st) {
+  return st ? Math.ceil(Math.round(st.compactBytes * 1.34) / SPLIT_PART_BYTES) : 0;
 }
 
 function renderExportDialog() {
@@ -1009,28 +1024,37 @@ function renderExportDialog() {
   if (!d) { root.innerHTML = ""; return; }
   var st = d.stats;
   var labCount = labAllLive().length;
-  function opt(mode, title, desc) {
+  function opt(mode, title, desc, sizeText) {
     var est = exportEstimate(mode, st);
     return '<label class="expopt' + (d.mode === mode ? ' active' : '') + '">' +
       '<input type="radio" name="exportmode" value="' + mode + '" data-field="export-mode"' + (d.mode === mode ? ' checked' : '') + (d.busy ? ' disabled' : '') + '/>' +
       '<span class="expopt-body"><span class="expopt-title">' + title + '</span><span class="expopt-desc">' + desc + '</span></span>' +
-      '<span class="expopt-size">' + (est == null ? '…' : '± ' + fmtBytes(est)) + '</span></label>';
+      '<span class="expopt-size">' + (est == null ? '…' : sizeText || '± ' + fmtBytes(est)) + '</span></label>';
   }
+  var fullCompact = st ? st.base + Math.round(st.compactBytes * 1.34) : 0;
+  var willShrink = st && fullCompact > EXPORT_TARGET_BYTES;
+  var parts = splitPartCount(st);
   var est = exportEstimate(d.mode, st);
-  var tooBig = est != null && est > GITHUB_UPLOAD_LIMIT;
+  var tooBig = (d.mode === "full" || d.mode === "none") && est != null && est > GITHUB_UPLOAD_LIMIT;
   root.innerHTML = '<div class="modal-backdrop" data-action="export-backdrop">' +
     '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">' +
     '<div class="modal-head"><h3 id="exportTitle">Ekspor Data JSON</h3>' +
     '<button type="button" class="iconbtn" data-action="export-close" aria-label="Tutup"' + (d.busy ? ' disabled' : '') + '>' + ICONS.close + '</button></div>' +
     '<div class="modal-body">' +
-    '<p class="formhint">Satu berkas berisi seluruh data aplikasi: progres sampling Before dan After Recovery, catatan, lokasi aktual, titik tambahan, serta ' + labCount + ' hasil uji lab. Berkas ini bisa diimpor di perangkat lain atau diunggah ke repositori GitHub untuk dibagikan ke tim.</p>' +
+    '<p class="formhint">Berisi seluruh data aplikasi: progres sampling Before dan After Recovery, catatan, lokasi aktual, titik tambahan, serta ' + labCount + ' hasil uji lab. Berkas ini bisa diimpor di perangkat lain atau diunggah ke repositori GitHub untuk dibagikan ke tim. Batas unggah lewat browser di GitHub adalah 25 MB per berkas.</p>' +
     '<div class="expopts">' +
-    opt("compact", "Dengan foto, ringkas (disarankan)", "Foto diperkecil maksimal " + COMPACT_PHOTO_DIM + " px, masih jelas untuk dokumentasi.") +
-    opt("full", "Dengan foto, kualitas asli", "Foto seperti yang tersimpan di perangkat. Berkas paling besar.") +
+    opt("compact", "Satu berkas, otomatis di bawah 25 MB (disarankan)",
+      "Foto diperkecil maksimal " + COMPACT_PHOTO_DIM + " px. Bila totalnya masih di atas 25 MB, resolusi foto diturunkan otomatis (paling kecil " + MIN_AUTO_PHOTO_DIM + " px) sampai berkas muat." +
+      (willShrink ? ' <b>Foto Anda saat ini perlu diperkecil lagi agar muat.</b>' : ''),
+      st ? '≤ ' + fmtBytes(est) : null) +
+    opt("split", "Dipecah jadi beberapa berkas, foto tetap " + COMPACT_PHOTO_DIM + " px",
+      "Satu berkas data ditambah berkas foto (-foto-1, -foto-2, …), masing-masing di bawah 25 MB. Unggah semuanya sekaligus ke GitHub; aplikasi hanya mengunduh bagian foto yang belum ada di perangkat.",
+      st ? '± ' + fmtBytes(exportEstimate("split", st)) + (parts ? ' · ' + (parts + 1) + ' berkas' : '') : null) +
+    opt("full", "Dengan foto, kualitas asli", "Foto seperti yang tersimpan di perangkat. Berkas paling besar; untuk cadangan pribadi, bukan untuk diunggah ke GitHub.") +
     opt("none", "Tanpa foto (paling ringan)", "Hanya data. Foto tetap aman di perangkat ini; di perangkat lain foto ditandai tidak tersedia.") +
     '</div>' +
     '<p class="expstats">' + (st ? (st.count ? st.count + ' foto tersimpan di perangkat ini (' + fmtBytes(st.bytes) + ')' : 'Belum ada foto tersimpan di perangkat ini') + (st.missing ? ', ' + st.missing + ' foto tidak tersedia di perangkat ini' : '') + '. Ukuran berkas adalah perkiraan.' : 'Menghitung ukuran foto…') + '</p>' +
-    (tooBig ? '<p class="formerror">Perkiraan ukuran melebihi 25 MB, batas unggah berkas lewat browser di GitHub. Pilih Dengan foto, ringkas atau Tanpa foto bila berkas akan diunggah ke GitHub.</p>' : '') +
+    (tooBig ? '<p class="formerror">Perkiraan ukuran melebihi 25 MB, batas unggah berkas lewat browser di GitHub. Pilih Satu berkas otomatis atau Dipecah bila berkas akan diunggah ke GitHub.</p>' : '') +
     (d.progress ? '<p class="expprogress">' + esc(d.progress) + '</p>' : '') +
     '</div>' +
     '<div class="modal-foot"><span></span><div class="modal-foot-right">' +
@@ -1039,33 +1063,89 @@ function renderExportDialog() {
     '</div></div></div></div>';
 }
 
-function compressPhotoBlob(blob) {
+function compressPhotoBlob(blob, dim, quality) {
+  dim = dim || COMPACT_PHOTO_DIM;
+  quality = quality || COMPACT_PHOTO_QUALITY;
   return new Promise(function (resolve) {
     var url = URL.createObjectURL(blob);
     var img = new Image();
     img.onload = function () {
       var w = img.naturalWidth, h = img.naturalHeight;
-      var sc = Math.min(1, COMPACT_PHOTO_DIM / Math.max(w, h));
+      var sc = Math.min(1, dim / Math.max(w, h));
       var canvas = document.createElement("canvas");
       canvas.width = Math.max(1, Math.round(w * sc));
       canvas.height = Math.max(1, Math.round(h * sc));
       canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(url);
-      canvas.toBlob(function (out) { resolve(out && out.size < blob.size ? out : blob); }, "image/jpeg", COMPACT_PHOTO_QUALITY);
+      canvas.toBlob(function (out) { resolve(out && out.size < blob.size ? out : blob); }, "image/jpeg", quality);
     };
     img.onerror = function () { URL.revokeObjectURL(url); resolve(blob); };
     img.src = url;
   });
 }
 
+function setExportProgress(msg) {
+  if (!state.exportDlg) return;
+  state.exportDlg.progress = msg;
+  renderExportDialog();
+}
+
+function downloadBlob(blob, name) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+}
+
+// Encodes every photo task at one resolution; dim null keeps the stored file.
+function encodeExportPhotos(tasks, dim, quality, label) {
+  var total = 0;
+  var chain = Promise.resolve();
+  tasks.forEach(function (t, i) {
+    chain = chain.then(function () {
+      setExportProgress("Memproses foto " + (i + 1) + " dari " + tasks.length + (label ? " (" + label + ")" : "") + "…");
+      return dbGetPhoto(t.id).then(function (blob) {
+        t.data = null;
+        if (!blob) return;
+        return (dim ? compressPhotoBlob(blob, dim, quality) : Promise.resolve(blob)).then(blobToBase64).then(function (b64) {
+          t.data = b64;
+          total += b64.length + t.id.length + 16;
+        });
+      });
+    });
+  });
+  return chain.then(function () { return total; });
+}
+
+// Lowers photo resolution until base + photos fits under the GitHub limit.
+function encodeToFit(tasks, baseBytes) {
+  var dim = COMPACT_PHOTO_DIM, quality = COMPACT_PHOTO_QUALITY, pass = 0;
+  function attempt() {
+    pass++;
+    return encodeExportPhotos(tasks, dim, quality, pass > 1 ? dim + " px" : "").then(function (photoBytes) {
+      if (baseBytes + photoBytes <= EXPORT_TARGET_BYTES || dim <= MIN_AUTO_PHOTO_DIM || pass >= 5) return dim;
+      // JPEG size grows roughly with pixel count, so scale the edge by the square root of the overshoot.
+      var ratio = Math.max(0.05, (EXPORT_TARGET_BYTES - baseBytes) / photoBytes);
+      dim = Math.max(MIN_AUTO_PHOTO_DIM, Math.floor(dim * Math.min(0.9, Math.sqrt(ratio) * 0.95)));
+      quality = Math.max(0.42, quality - 0.04);
+      setExportProgress("Berkas masih ± " + fmtBytes(baseBytes + photoBytes) + ", memperkecil foto ke " + dim + " px…");
+      return attempt();
+    });
+  }
+  return attempt();
+}
+
 function exportJson(mode) {
-  mode = mode || "compact";
+  mode = EXPORT_MODES.indexOf(mode) === -1 ? "compact" : mode;
   var d = state.exportDlg;
   if (d) { d.busy = true; d.progress = "Menyiapkan berkas…"; renderExportDialog(); }
   var payload = exportBasePayload();
   payload.photoMode = mode;
   var tasks = [];
-  var withData = 0;
 
   Object.keys(state.reports).forEach(function (pid) {
     var r = state.reports[pid];
@@ -1078,7 +1158,7 @@ function exportJson(mode) {
         if (typeof ph.gpsLat === "number" && typeof ph.gpsLon === "number") {
           entry.gpsLat = ph.gpsLat; entry.gpsLon = ph.gpsLon;
         }
-        if (mode !== "none") tasks.push({ id: ph.id, entry: entry });
+        if (mode !== "none") tasks.push({ id: ph.id, entry: entry, data: null });
         return entry;
       });
       copy[round] = roundCopy;
@@ -1086,38 +1166,54 @@ function exportJson(mode) {
     payload.reports[pid] = copy;
   });
 
-  var chain = Promise.resolve();
-  tasks.forEach(function (t, i) {
-    chain = chain.then(function () {
-      if (state.exportDlg) { state.exportDlg.progress = "Memproses foto " + (i + 1) + " dari " + tasks.length + "…"; renderExportDialog(); }
-      return dbGetPhoto(t.id).then(function (blob) {
-        if (!blob) return;
-        return (mode === "compact" ? compressPhotoBlob(blob) : Promise.resolve(blob)).then(blobToBase64).then(function (b64) {
-          t.entry.data = b64;
-          withData++;
-        });
-      });
-    });
-  });
+  var baseName = "sampling-oilspill-" + new Date().toISOString().slice(0, 10);
+  var baseBytes = JSON.stringify(payload).length + 64 * tasks.length;
+  var work;
+  if (mode === "none" || !tasks.length) work = Promise.resolve(null);
+  else if (mode === "full") work = encodeExportPhotos(tasks, null);
+  else if (mode === "split") work = encodeExportPhotos(tasks, COMPACT_PHOTO_DIM, COMPACT_PHOTO_QUALITY);
+  else work = encodeToFit(tasks, baseBytes);
 
-  chain.then(function () {
-    var json = JSON.stringify(payload);
-    var blob = new Blob([json], { type: "application/json" });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = "sampling-oilspill-" + new Date().toISOString().slice(0, 10) + ".json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  work.then(function (result) {
+    var withData = tasks.filter(function (t) { return t.data; });
+    var files = [];
+    if (mode === "split" && withData.length) {
+      var parts = [], cur = null;
+      withData.forEach(function (t) {
+        var size = t.data.length + t.id.length + 16;
+        if (!cur || (cur.size + size > SPLIT_PART_BYTES && cur.photos.length)) { cur = { photos: [], size: 200 }; parts.push(cur); }
+        cur.photos.push({ id: t.id, data: t.data });
+        cur.size += size;
+      });
+      payload.photoParts = parts.map(function (p, i) {
+        return { file: baseName + "-foto-" + (i + 1) + ".json", ids: p.photos.map(function (ph) { return ph.id; }) };
+      });
+      files.push({ name: baseName + ".json", blob: new Blob([JSON.stringify(payload)], { type: "application/json" }) });
+      parts.forEach(function (p, i) {
+        var pack = { schema: "oilspill-photos-v1", exportedAt: payload.exportedAt, mainFile: baseName + ".json", part: i + 1, parts: parts.length, photos: p.photos };
+        files.push({ name: payload.photoParts[i].file, blob: new Blob([JSON.stringify(pack)], { type: "application/json" }) });
+      });
+    } else {
+      withData.forEach(function (t) { t.entry.data = t.data; });
+      if (mode === "compact" && typeof result === "number") payload.photoMaxDim = result;
+      files.push({ name: baseName + ".json", blob: new Blob([JSON.stringify(payload)], { type: "application/json" }) });
+    }
+
+    // Browsers may ask once to allow several downloads; space them out so none is dropped.
+    files.forEach(function (f, i) { setTimeout(function () { downloadBlob(f.blob, f.name); }, i * 700); });
     state.exportDlg = null;
     renderExportDialog();
-    var label = mode === "none" ? "tanpa foto" : (mode === "compact" ? "foto ringkas" : "foto kualitas asli");
-    if (blob.size > GITHUB_UPLOAD_LIMIT) {
-      showToast("warn", "Berkas JSON terunduh (" + fmtBytes(blob.size) + ", " + label + "), tetapi melebihi batas unggah GitHub 25 MB. Ekspor ulang dengan pilihan Tanpa foto.");
+
+    var biggest = files.reduce(function (m, f) { return Math.max(m, f.blob.size); }, 0);
+    var totalSize = files.reduce(function (s, f) { return s + f.blob.size; }, 0);
+    var photoTxt = mode === "none" ? "tanpa foto" : withData.length + " foto";
+    if (mode === "compact" && typeof result === "number" && result < COMPACT_PHOTO_DIM) photoTxt += " diperkecil ke " + result + " px";
+    if (biggest > GITHUB_UPLOAD_LIMIT) {
+      showToast("warn", "Berkas JSON terunduh (" + fmtBytes(biggest) + ", " + photoTxt + "), tetapi melebihi batas unggah GitHub 25 MB. Ekspor ulang dengan pilihan Dipecah jadi beberapa berkas.");
+    } else if (files.length > 1) {
+      showToast("success", files.length + " berkas JSON terunduh (total " + fmtBytes(totalSize) + ", " + photoTxt + "). Unggah semuanya sekaligus ke GitHub tanpa mengubah namanya.");
     } else {
-      showToast("success", "Berkas JSON terunduh: " + fmtBytes(blob.size) + " (" + label + (mode !== "none" ? ", " + withData + " foto" : "") + ").");
+      showToast("success", "Berkas JSON terunduh: " + fmtBytes(totalSize) + " (" + photoTxt + ").");
     }
   }).catch(function () {
     if (state.exportDlg) { state.exportDlg.busy = false; state.exportDlg.progress = ""; renderExportDialog(); }
@@ -1654,27 +1750,12 @@ function buildQrSvg(text, sizeMm) {
 }
 
 /* ---------------------------------------------------------------------
-   Map PDF export: builds a print-only "peta titik sampling" sheet
-   (map + legend + coordinate info + title block) and hands it to the
-   browser's own print dialog, so "Save as PDF" produces the file.
-   Coordinates on the sheet are plain WGS84 latitude/longitude (the
-   same reference frame the rest of this app already uses) rather than
-   the site's own local survey grid, since that grid's exact datum
-   shift could not be independently verified here. Excludes the actual
-   sampling location layer by design. Both the map contents and the
-   summary reflect whatever search text and status filter are active
-   on screen at export time.
+   Map PDF export helpers shared with map-pdf.js (the export dialog and
+   print sheet) and lab.js (distances around the leak point).
 --------------------------------------------------------------------- */
 var APP_URL = "https://muhammad-afifani.github.io/Sampling-Oil-Spill-RC-86/";
 var MAP_SVG_MPERDEG_LAT = 110574;
 function mPerDegLon(refLat) { return 111320 * Math.cos(refLat * Math.PI / 180); }
-
-function niceGraticuleStep(rangeDeg) {
-  if (rangeDeg > 0.012) return 0.002;
-  if (rangeDeg > 0.006) return 0.001;
-  if (rangeDeg > 0.003) return 0.0005;
-  return 0.0002;
-}
 
 function ringCentroid(ring) {
   var n = ring.length, sumLat = 0, sumLon = 0;
@@ -1682,202 +1763,6 @@ function ringCentroid(ring) {
   return [sumLat / n, sumLon / n];
 }
 
-function buildMapExportSvg(round, mapWmm, mapHmm) {
-  var lats = [], lons = [];
-  GRIDS.forEach(function (g) { g.ring.forEach(function (c) { lats.push(c[0]); lons.push(c[1]); }); });
-  allPoints().forEach(function (p) { lats.push(p.lat); lons.push(p.lon); });
-  var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
-  var minLon = Math.min.apply(null, lons), maxLon = Math.max.apply(null, lons);
-  var padLat = (maxLat - minLat) * 0.12, padLon = (maxLon - minLon) * 0.12;
-  minLat -= padLat; maxLat += padLat; minLon -= padLon; maxLon += padLon;
-
-  var midLat = (minLat + maxLat) / 2;
-  var mLon = mPerDegLon(midLat), mLat = MAP_SVG_MPERDEG_LAT;
-  var realWidthM = (maxLon - minLon) * mLon;
-  var realHeightM = (maxLat - minLat) * mLat;
-  var scaleMmPerM = Math.min(mapWmm / realWidthM, mapHmm / realHeightM);
-  var usedW = realWidthM * scaleMmPerM, usedH = realHeightM * scaleMmPerM;
-  var offX = (mapWmm - usedW) / 2, offY = (mapHmm - usedH) / 2;
-
-  function project(lat, lon) {
-    var xm = (lon - minLon) * mLon;
-    var ym = (maxLat - lat) * mLat;
-    return [offX + xm * scaleMmPerM, offY + ym * scaleMmPerM];
-  }
-
-  var parts = [];
-  parts.push('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + mapWmm + ' ' + mapHmm + '" width="' + mapWmm + 'mm" height="' + mapHmm + 'mm" font-family="Arial, sans-serif">');
-  parts.push('<rect x="0" y="0" width="' + mapWmm + '" height="' + mapHmm + '" fill="#eef1f2"/>');
-
-  var imgTL = project(IMAGE_BOUNDS[1][0], IMAGE_BOUNDS[0][1]);
-  var imgBR = project(IMAGE_BOUNDS[0][0], IMAGE_BOUNDS[1][1]);
-  parts.push('<image href="' + BASEMAP_URL + '" x="' + imgTL[0].toFixed(2) + '" y="' + imgTL[1].toFixed(2) + '" width="' + (imgBR[0] - imgTL[0]).toFixed(2) + '" height="' + (imgBR[1] - imgTL[1]).toFixed(2) + '" preserveAspectRatio="none"/>');
-
-  // Graticule: short edge tick marks + light interior cross-hairs (kept subtle
-  // so grid/point labels stay legible), labelled in WGS84 decimal degrees.
-  var stepLat = niceGraticuleStep(maxLat - minLat);
-  var stepLon = niceGraticuleStep(maxLon - minLon);
-  var gTick = 'stroke="#E6007E" stroke-width="0.25"';
-  var gCross = 'stroke="#E6007E" stroke-width="0.12" stroke-opacity="0.4"';
-  var gText = 'font-size="2.4" fill="#E6007E"';
-  var TICK = 2.2;
-  for (var la = Math.ceil(minLat / stepLat) * stepLat; la <= maxLat; la += stepLat) {
-    var y = project(la, minLon)[1];
-    parts.push('<line x1="0" y1="' + y.toFixed(2) + '" x2="' + TICK + '" y2="' + y.toFixed(2) + '" ' + gTick + '/>');
-    parts.push('<line x1="' + (mapWmm - TICK).toFixed(2) + '" y1="' + y.toFixed(2) + '" x2="' + mapWmm + '" y2="' + y.toFixed(2) + '" ' + gTick + '/>');
-    parts.push('<text x="' + (TICK + 0.8).toFixed(2) + '" y="' + (y - 0.6).toFixed(2) + '" ' + gText + '>' + Math.abs(la).toFixed(4) + '°S</text>');
-  }
-  for (var lo = Math.ceil(minLon / stepLon) * stepLon; lo <= maxLon; lo += stepLon) {
-    var x = project(minLat, lo)[0];
-    parts.push('<line x1="' + x.toFixed(2) + '" y1="0" x2="' + x.toFixed(2) + '" y2="' + TICK + '" ' + gTick + '/>');
-    parts.push('<line x1="' + x.toFixed(2) + '" y1="' + (mapHmm - TICK).toFixed(2) + '" x2="' + x.toFixed(2) + '" y2="' + mapHmm + '" ' + gTick + '/>');
-    parts.push('<text x="' + (x + 0.6).toFixed(2) + '" y="' + (mapHmm - TICK - 0.8).toFixed(2) + '" ' + gText + ' transform="rotate(-90 ' + x.toFixed(2) + ' ' + (mapHmm - TICK - 0.8).toFixed(2) + ')">' + lo.toFixed(4) + '°E</text>');
-  }
-  for (var la2 = Math.ceil(minLat / stepLat) * stepLat; la2 <= maxLat; la2 += stepLat) {
-    for (var lo2 = Math.ceil(minLon / stepLon) * stepLon; lo2 <= maxLon; lo2 += stepLon) {
-      var cxy = project(la2, lo2);
-      parts.push('<line x1="' + (cxy[0] - 1.4).toFixed(2) + '" y1="' + cxy[1].toFixed(2) + '" x2="' + (cxy[0] + 1.4).toFixed(2) + '" y2="' + cxy[1].toFixed(2) + '" ' + gCross + '/>');
-      parts.push('<line x1="' + cxy[0].toFixed(2) + '" y1="' + (cxy[1] - 1.4).toFixed(2) + '" x2="' + cxy[0].toFixed(2) + '" y2="' + (cxy[1] + 1.4).toFixed(2) + '" ' + gCross + '/>');
-    }
-  }
-
-  // Grid polygons + labels
-  GRIDS.forEach(function (g) {
-    var pts = g.ring.map(function (c) { var xy = project(c[0], c[1]); return xy[0].toFixed(2) + "," + xy[1].toFixed(2); }).join(" ");
-    parts.push('<polygon points="' + pts + '" fill="none" stroke="#E6007E" stroke-width="0.6"/>');
-    var c = ringCentroid(g.ring.slice(0, -1));
-    var cxy = project(c[0], c[1]);
-    parts.push('<text x="' + cxy[0].toFixed(2) + '" y="' + cxy[1].toFixed(2) + '" font-size="4.6" font-weight="700" fill="#111" text-anchor="middle">' + esc(g.label) + '</text>');
-  });
-
-  // Points (actual-location layer intentionally excluded). Only points
-  // that currently match the on-screen search and status filter are
-  // drawn, so the printed map mirrors what the user has filtered to.
-  var q = (state.search || "").trim().toLowerCase();
-  allPoints().forEach(function (p) {
-    var r = repOf(p.id, round);
-    if (!(matchesFilter(r) && (!q || p.id.toLowerCase().indexOf(q) !== -1))) return;
-    var xy = project(p.lat, p.lon);
-    var fill = r.issue ? "#F2635C" : (r.done ? "#3BD488" : "#FFD400");
-    if (r.issue) {
-      parts.push('<rect x="' + (xy[0] - 1.3).toFixed(2) + '" y="' + (xy[1] - 1.3).toFixed(2) + '" width="2.6" height="2.6" fill="' + fill + '" stroke="#7a1410" stroke-width="0.25"/>');
-    } else {
-      parts.push('<circle cx="' + xy[0].toFixed(2) + '" cy="' + xy[1].toFixed(2) + '" r="1.4" fill="' + fill + '" stroke="#5c4b00" stroke-width="0.25"/>');
-    }
-    parts.push('<text x="' + (xy[0] + 1.8).toFixed(2) + '" y="' + (xy[1] - 1.2).toFixed(2) + '" font-size="2.3" fill="#0a1116" style="paint-order:stroke" stroke="#fff" stroke-width="0.6">' + esc(p.id) + '</text>');
-  });
-
-  // North arrow
-  var naX = mapWmm - 14, naY = 14;
-  parts.push('<g transform="translate(' + naX + ',' + naY + ')">' +
-    '<polygon points="0,-9 3,4 0,1 -3,4" fill="#111"/>' +
-    '<text x="0" y="-11" font-size="4" font-weight="700" text-anchor="middle" fill="#111">N</text></g>');
-
-  // Scale bar
-  var candidates = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
-  var barM = 20;
-  for (var i = 0; i < candidates.length; i++) {
-    if (candidates[i] * scaleMmPerM <= mapWmm * 0.22) barM = candidates[i]; else break;
-  }
-  var barMm = barM * scaleMmPerM;
-  var barX = 6, barY = mapHmm - 8;
-  parts.push('<g transform="translate(' + barX + ',' + barY + ')">' +
-    '<rect x="0" y="0" width="' + barMm.toFixed(2) + '" height="1.6" fill="#111"/>' +
-    '<rect x="0" y="0" width="' + (barMm / 2).toFixed(2) + '" height="1.6" fill="#fff" stroke="#111" stroke-width="0.2"/>' +
-    '<text x="0" y="-1" font-size="2.6" fill="#111">0</text>' +
-    '<text x="' + barMm.toFixed(2) + '" y="-1" font-size="2.6" fill="#111" text-anchor="end">' + barM + ' m</text></g>');
-
-  parts.push('</svg>');
-  return { svg: parts.join(""), scaleMmPerM: scaleMmPerM };
-}
-
-function buildPrintSheetHtml(round) {
-  var MAP_W = 305, MAP_H = 267;
-  var built = buildMapExportSvg(round, MAP_W, MAP_H);
-  var printScaleN = Math.round((1000 / built.scaleMmPerM) / 100) * 100;
-
-  var q = (state.search || "").trim();
-  var qLower = q.toLowerCase();
-  var filterLabelMap = { all: "Semua", done: "Selesai", pending: "Belum", issue: "Bermasalah" };
-  var dateDesc = dateFilterText();
-  var filterActive = state.statusFilter !== "all" || !!q || !!dateDesc;
-  var filterDesc = "Semua titik (tidak ada filter aktif)";
-  if (filterActive) {
-    filterDesc = "Status: " + (filterLabelMap[state.statusFilter] || "Semua") + (q ? "; Cari: “" + esc(q) + "”" : "") + (dateDesc ? "; " + esc(dateDesc) : "");
-  }
-
-  var doneAll = 0, issueAll = 0, total = 0, shown = 0;
-  allPoints().forEach(function (p) {
-    total++;
-    var r = repOf(p.id, round);
-    if (r.done) doneAll++;
-    if (r.issue) issueAll++;
-    if (matchesFilter(r) && (!qLower || p.id.toLowerCase().indexOf(qLower) !== -1)) shown++;
-  });
-
-  var gridRowsHtml = GRIDS.map(function (g) {
-    var stats = gridStats(g, round);
-    return '<div class="printkop-gridrow"><span class="printkop-gridname">' + esc(g.label) + '</span>' +
-      '<span class="printkop-gridval">' + stats.done + '/' + stats.total + '</span></div>';
-  }).join("");
-
-  var legendHtml = '<div class="printkop-box"><p class="printkop-boxtitle">LEGENDA</p>' +
-    '<div class="printkop-legitem"><span class="printkop-dot" style="background:#FFD400;border:0.3mm solid #5c4b00"></span>Titik Sampling (Belum)</div>' +
-    '<div class="printkop-legitem"><span class="printkop-dot" style="background:#3BD488;border:0.3mm solid #22B871"></span>Titik Sudah Disampling</div>' +
-    '<div class="printkop-legitem"><span class="printkop-sq" style="background:#F2635C;border:0.3mm solid #7a1410"></span>Tidak Bisa Disampling / Kendala</div>' +
-    '<div class="printkop-legitem"><span class="printkop-line"></span>Batas Grid (Grid Limit)</div>' +
-    '</div>';
-
-  var geoHtml = '<div class="printkop-box"><p class="printkop-boxtitle">PARAMETER KOORDINAT</p>' +
-    '<table class="printkop-geotable">' +
-    '<tr><td>Datum</td><td>WGS 84</td></tr>' +
-    '<tr><td>Sistem koordinat</td><td>Lintang / Bujur (derajat desimal)</td></tr>' +
-    '<tr><td>Skala cetak</td><td>≈ 1:' + printScaleN + ' (kertas A3)</td></tr>' +
-    '</table>' +
-    '<p class="printkop-note">Koordinat pada peta ini memakai referensi WGS 84 dari data aplikasi, bukan grid lokal survei internal.</p>' +
-    '</div>';
-
-  var summaryHtml = '<div class="printkop-box"><p class="printkop-boxtitle">RINGKASAN</p>' +
-    '<table class="printkop-geotable">' +
-    '<tr><td>Tahap</td><td>' + (round === "before" ? "Before Recovery" : "After Recovery") + '</td></tr>' +
-    '<tr><td>Total titik</td><td>' + total + '</td></tr>' +
-    '<tr><td>Selesai</td><td>' + doneAll + '</td></tr>' +
-    '<tr><td>Kendala</td><td>' + issueAll + '</td></tr>' +
-    '<tr><td>Area grid</td><td>' + GRIDS.length + '</td></tr>' +
-    '<tr><td>Titik ditampilkan</td><td>' + shown + ' dari ' + total + '</td></tr>' +
-    '<tr><td>Filter aktif</td><td>' + filterDesc + '</td></tr>' +
-    '</table>' +
-    '<p class="printkop-boxtitle printkop-gridtitle">PROGRES PER GRID</p>' +
-    '<div class="printkop-gridgrid">' + gridRowsHtml + '</div>' +
-    '</div>';
-
-  var titleHtml = '<div class="printkop-box printkop-title">' +
-    '<p class="printkop-client">PERTAMINA HULU MAHAKAM</p>' +
-    '<p class="printkop-subject">HANDIL TOPOGRAPHY SURVEY<br/>H-YB AREA</p>' +
-    '<table class="printkop-titletable">' +
-    '<tr><td>Judul</td><td>Peta Titik Sampling</td></tr>' +
-    '<tr><td>Tanggal cetak</td><td>' + esc(formatDateID(new Date().toISOString().slice(0, 10))) + '</td></tr>' +
-    '<tr><td>Sumber</td><td>Peta Sampling Oil Spill</td></tr>' +
-    '</table>' +
-    '<div class="printkop-titlebottom">' +
-    '<p class="printkop-disclaimer">Dibuat otomatis oleh Peta Sampling Oil Spill (Tim ENV BPN &amp; HCA) &mdash; bukan dokumen survei resmi.</p>' +
-    '<div class="printkop-qr">' + buildQrSvg(APP_URL, 20) + '<span class="printkop-qrlabel">Pindai untuk membuka aplikasi</span></div>' +
-    '</div>' +
-    '</div>';
-
-  return '<div class="printsheet"><div class="printsheet-border">' +
-    '<div class="printsheet-map">' + built.svg + '</div>' +
-    '<div class="printsheet-kop">' + legendHtml + geoHtml + summaryHtml + titleHtml + '</div>' +
-    '</div></div>';
-}
-
-function exportMapPdf() {
-  var root = document.getElementById("printSheetRoot");
-  root.innerHTML = buildPrintSheetHtml(state.round);
-  setTimeout(function () {
-    window.print();
-  }, 120);
-}
 function onAfterPrint() {
   var root = document.getElementById("printSheetRoot");
   if (root) root.innerHTML = "";
@@ -1886,20 +1771,80 @@ function onAfterPrint() {
 /* ---------------------------------------------------------------------
    Import and export
 --------------------------------------------------------------------- */
+function readFileText(file) {
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function (ev) { resolve(ev.target.result); };
+    reader.onerror = function () { reject(reader.error); };
+    reader.readAsText(file);
+  });
+}
+
+function isPhotoPack(data) { return !!data && data.schema === "oilspill-photos-v1" && Array.isArray(data.photos); }
+
+function mergeImportAsync(data) {
+  return new Promise(function (resolve) {
+    mergeImport(data, { silent: true, onDone: function (updated, addedPoints, photoFailure) { resolve({ updated: updated, addedPoints: addedPoints, photoFailure: photoFailure }); } });
+  });
+}
+
+// Stores photos from a -foto-N.json file that this device does not hold yet.
+function importPhotoPack(data) {
+  var added = 0, failed = false;
+  var chain = Promise.resolve();
+  (data.photos || []).forEach(function (ph) {
+    if (!ph || !ph.id || !ph.data) return;
+    chain = chain.then(function () {
+      return dbGetPhoto(ph.id).then(function (existing) {
+        if (existing) return;
+        return base64ToBlob(ph.data).then(function (blob) { return dbPutPhoto(ph.id, blob); }).then(function () { added++; });
+      }).catch(function () { failed = true; });
+    });
+  });
+  return chain.then(function () { return { added: added, failed: failed }; });
+}
+
+// Accepts one or more files at once: data files are merged first, then any
+// -foto-N.json photo files fill in the photos they reference.
 function handleImportInput(e) {
-  var file = e.target.files && e.target.files[0];
+  var files = e.target.files ? Array.prototype.slice.call(e.target.files) : [];
   e.target.value = "";
-  if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function (ev) {
-    try {
-      var data = JSON.parse(ev.target.result);
-      mergeImport(data);
-    } catch (err) {
-      showToast("warn", "Berkas JSON tidak dapat dibaca. Periksa kembali berkas yang dipilih.");
-    }
-  };
-  reader.readAsText(file);
+  if (!files.length) return;
+  Promise.all(files.map(function (f) {
+    return readFileText(f).then(function (txt) { return { name: f.name, data: JSON.parse(txt) }; }).catch(function () { return { name: f.name, data: null }; });
+  })).then(function (list) {
+    var bad = list.filter(function (x) { return !x.data; });
+    var packs = list.filter(function (x) { return isPhotoPack(x.data); });
+    var mains = list.filter(function (x) { return x.data && !isPhotoPack(x.data); });
+    mains.sort(function (a, b) { return String(a.data.exportedAt || a.name) < String(b.data.exportedAt || b.name) ? -1 : 1; });
+    if (bad.length === list.length) { showToast("warn", "Berkas JSON tidak dapat dibaca. Periksa kembali berkas yang dipilih."); return; }
+    var sum = { updated: 0, addedPoints: 0, photos: 0, failed: false };
+    var chain = Promise.resolve();
+    mains.forEach(function (m) {
+      chain = chain.then(function () { return mergeImportAsync(m.data); }).then(function (r) {
+        sum.updated += r.updated; sum.addedPoints += r.addedPoints; if (r.photoFailure) sum.failed = true;
+      });
+    });
+    packs.forEach(function (pk) {
+      chain = chain.then(function () { return importPhotoPack(pk.data); }).then(function (r) {
+        sum.photos += r.added; if (r.failed) sum.failed = true;
+      });
+    });
+    return chain.then(function () {
+      render();
+      var expected = 0;
+      mains.forEach(function (m) { if (Array.isArray(m.data.photoParts)) expected = Math.max(expected, m.data.photoParts.length); });
+      var msg = "Impor selesai";
+      if (mains.length) msg += ". " + sum.updated + " entri diperbarui";
+      if (sum.addedPoints) msg += ", " + sum.addedPoints + " titik tambahan baru";
+      if (packs.length) msg += (mains.length ? ", " : ". ") + sum.photos + " foto ditambahkan dari " + packs.length + " berkas foto";
+      msg += ".";
+      if (expected > packs.length) msg += " Berkas ini punya " + expected + " berkas foto terpisah (-foto-1, -foto-2, …); pilih semuanya sekaligus agar fotonya ikut masuk.";
+      if (bad.length) msg += " " + bad.length + " berkas tidak dapat dibaca.";
+      if (sum.failed) msg += " Sebagian foto gagal disimpan.";
+      showToast(sum.failed || bad.length || expected > packs.length ? "warn" : "success", msg);
+    });
+  });
 }
 
 function mergeImport(data, opts) {
@@ -1985,7 +1930,9 @@ function finishImport(updated, addedPoints, photoFailure, opts, photosFilled) {
    the most recently named JSON export (the same auto-generated name
    Ekspor JSON produces, e.g. sampling-oilspill-2026-09-25.json) and
    merge it in, so everyone opening the page picks up the latest team
-   update. Best-effort: any failure (offline, nothing uploaded yet) is
+   update. A split export's -foto-N.json files are skipped when picking
+   the latest file and fetched afterwards only for photos this device
+   lacks. Best-effort: any failure (offline, nothing uploaded yet) is
    silent.
 --------------------------------------------------------------------- */
 var SYNC_OWNER = "muhammad-afifani";
@@ -2006,6 +1953,39 @@ function hideSyncBanner() {
   el.innerHTML = "";
 }
 
+// Photo ids the reports reference that this device has no file for.
+function missingPhotoIds() {
+  var missing = {};
+  return Promise.all(allPhotoRefs().map(function (id) {
+    return dbGetPhoto(id).then(function (blob) { if (!blob) missing[id] = true; }).catch(function () { missing[id] = true; });
+  })).then(function () { return missing; });
+}
+
+// After a split export is merged, fetch only the -foto-N files that hold
+// photos this device is missing.
+function syncPhotoParts(data, listing) {
+  var parts = Array.isArray(data.photoParts) ? data.photoParts : [];
+  if (!parts.length) return Promise.resolve(0);
+  return missingPhotoIds().then(function (missing) {
+    var needed = parts.filter(function (p) {
+      return (p.ids || []).some(function (id) { return missing[id]; });
+    }).map(function (p) {
+      return listing.filter(function (f) { return f.name === p.file; })[0];
+    }).filter(Boolean);
+    var added = 0;
+    var chain = Promise.resolve();
+    needed.forEach(function (f, i) {
+      chain = chain.then(function () {
+        showSyncBanner("Mengunduh foto bersama (bagian " + (i + 1) + " dari " + needed.length + ")…");
+        return fetch(f.download_url).then(function (res) { return res.json(); }).then(function (pack) {
+          return isPhotoPack(pack) ? importPhotoPack(pack) : { added: 0 };
+        }).then(function (r) { added += r.added; }).catch(function () {});
+      });
+    });
+    return chain.then(function () { return added; });
+  });
+}
+
 function syncFromRemote() {
   if (!window.fetch) return;
   showSyncBanner("Memperbarui database…");
@@ -2014,7 +1994,8 @@ function syncFromRemote() {
     .then(function (res) { return res.ok ? res.json() : []; })
     .then(function (list) {
       if (!Array.isArray(list)) { hideSyncBanner(); return; }
-      var files = list.filter(function (f) { return f.type === "file" && SYNC_NAME_RE.test(f.name); });
+      var all = list.filter(function (f) { return f.type === "file" && SYNC_NAME_RE.test(f.name); });
+      var files = all.filter(function (f) { return !PHOTO_PART_RE.test(f.name); });
       if (!files.length) { hideSyncBanner(); return; }
       files.sort(function (a, b) { return a.name < b.name ? -1 : a.name > b.name ? 1 : 0; });
       var latest = files[files.length - 1];
@@ -2022,8 +2003,13 @@ function syncFromRemote() {
         mergeImport(data, {
           silent: true,
           onDone: function (updated, addedPoints) {
-            hideSyncBanner();
-            if (updated || addedPoints) showToast("success", "Database diperbarui dari repository (" + updated + " entri).");
+            syncPhotoParts(data, all).catch(function () { return 0; }).then(function (photos) {
+              hideSyncBanner();
+              if (photos) render();
+              if (updated || addedPoints || photos) {
+                showToast("success", "Database diperbarui dari repository (" + updated + " entri" + (photos ? ", " + photos + " foto" : "") + ").");
+              }
+            });
           }
         });
       });
@@ -2644,6 +2630,7 @@ function onAction(e) {
   var id = el.getAttribute("data-id");
 
   if (action.indexOf("lab-") === 0) { labOnAction(action, el, e); return; }
+  if (action.indexOf("pdf-") === 0) { pdfOnAction(action, el, e); return; }
   if (action === "set-view") { setView(el.getAttribute("data-view")); return; }
   if (action === "select-point") selectPoint(id);
   else if (action === "select-grid") selectGrid(id);
@@ -2674,7 +2661,7 @@ function onAction(e) {
     if (ms) ms.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   else if (action === "export-points-excel") exportPointsExcel();
-  else if (action === "export-map-pdf") exportMapPdf();
+  else if (action === "export-map-pdf") openPdfDialog();
   else if (action === "toggle-actual") toggleActual();
   else if (action === "toggle-fullscreen") toggleFullscreen();
   else if (action === "close-toast") { state.toast = null; renderToast(); }
@@ -2740,6 +2727,7 @@ function onInput(e) {
   var field = t.getAttribute && t.getAttribute("data-field");
   if (t.id === "searchInput") { state.search = t.value; render(); return; }
   if (!field) return;
+  if (field === "pdf-zoom") { pdfOnField(field, t); return; }
   if (field.indexOf("lab-") === 0) { labOnInput(field, t); return; }
 
   if (field === "newcode") { state.newPointDraft.code = t.value; return; }
@@ -2777,6 +2765,7 @@ function onChange(e) {
   if (t.id === "importInput") { handleImportInput(e); return; }
   if (t.id === "labImportInput") { labHandleImportInput(e); return; }
   if (!field) return;
+  if (field === "pdf-layer" || field === "pdf-box") { pdfOnField(field, t); return; }
   if (field.indexOf("lab-") === 0) { labOnChange(field, t); return; }
 
   if (field === "date-filter") {
@@ -2866,7 +2855,11 @@ function boot() {
   document.body.addEventListener("dragleave", onDragLeave);
   document.body.addEventListener("drop", onDrop);
   document.addEventListener("fullscreenchange", onFullscreenChange);
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && state.exportDlg && !state.exportDlg.busy) closeExportDialog(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (state.exportDlg && !state.exportDlg.busy) closeExportDialog();
+    if (state.pdfDlg) closePdfDialog();
+  });
   window.addEventListener("afterprint", onAfterPrint);
 }
 
