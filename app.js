@@ -2727,7 +2727,7 @@ function onInput(e) {
   var field = t.getAttribute && t.getAttribute("data-field");
   if (t.id === "searchInput") { state.search = t.value; render(); return; }
   if (!field) return;
-  if (field === "pdf-zoom") { pdfOnField(field, t); return; }
+  if (field.indexOf("pdf-") === 0) { if (t.type === "range" || t.type === "color") pdfOnField(field, t); return; }
   if (field.indexOf("lab-") === 0) { labOnInput(field, t); return; }
 
   if (field === "newcode") { state.newPointDraft.code = t.value; return; }
@@ -2765,7 +2765,7 @@ function onChange(e) {
   if (t.id === "importInput") { handleImportInput(e); return; }
   if (t.id === "labImportInput") { labHandleImportInput(e); return; }
   if (!field) return;
-  if (field === "pdf-layer" || field === "pdf-box") { pdfOnField(field, t); return; }
+  if (field.indexOf("pdf-") === 0) { if (t.type !== "range" && t.type !== "color") pdfOnField(field, t); return; }
   if (field.indexOf("lab-") === 0) { labOnChange(field, t); return; }
 
   if (field === "date-filter") {

@@ -688,10 +688,27 @@ td.windto .windarrow{vertical-align:-4px;color:#7FC8F8;}
 .printkop-ev li{margin-bottom:0.8mm;}
 .printkop-ex{color:#B3261E;}
 .printkop-note-top{margin:0 0 1.2mm;}
+.printkop-legrange{display:block;font-size:2mm;color:#555;}
+.printkop-subtitle{margin:2mm 0 0.8mm;font-size:2.3mm;font-weight:700;border-top:0.15mm solid #999;padding-top:1mm;}
+.printkop-gtable{font-size:2.1mm;}
+.printkop-gr{display:grid;grid-template-columns:15mm 6mm repeat(4,7.5mm) 1fr;align-items:center;gap:0 0.6mm;padding:0.45mm 0;border-bottom:0.15mm solid #ddd;}
+.printkop-ghead{font-weight:700;border-bottom:0.3mm solid #111;font-size:1.9mm;}
+.printkop-ghead .printkop-gtop{font-weight:600;}
+.printkop-gtotal{font-weight:700;border-top:0.3mm solid #111;border-bottom:none;}
+.printkop-gname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.printkop-gnum{text-align:center;}
+.printkop-gtop{line-height:1.25;}
+.printkop-muted{color:#666;font-size:1.8mm;}
+.printkop-zero{color:#aaa;}
+.printkop-chip{display:inline-block;min-width:4.6mm;padding:0.1mm 0.8mm;border-radius:0.9mm;font-weight:700;box-sizing:border-box;}
+.printkop-gsw{display:inline-block;width:1.9mm;height:1.9mm;border-radius:0.4mm;border:0.15mm solid #333;margin-right:0.6mm;vertical-align:-0.2mm;}
+.printkop-ghead .printkop-gnum{display:flex;align-items:center;justify-content:center;gap:0.3mm;}
+.printkop-ghead .printkop-gsw{margin-right:0;}
+.printkop-wr{display:flex;justify-content:space-between;gap:2mm;font-size:2.1mm;padding:0.4mm 0;border-bottom:0.15mm solid #ddd;}
 
 /* map PDF export dialog */
 .modal-pdf{max-width:1180px;}
-.pdfdlg{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:18px;align-items:start;}
+.pdfdlg{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start;}
 .pdfprev{position:relative;overflow:hidden;border:1px solid var(--line-strong);border-radius:10px;background:#fff;touch-action:none;}
 .pdfprev .printsheet-map{cursor:grab;}
 .pdfprev.dragging .printsheet-map{cursor:grabbing;}
@@ -711,6 +728,21 @@ td.windto .windarrow{vertical-align:-4px;color:#7FC8F8;}
 .pdfcheck input{accent-color:var(--teal);width:15px;height:15px;margin:0;flex:none;}
 .pdfcheck-sub{padding-left:22px;font-size:12px;}
 .pdfcheck.disabled{opacity:0.45;cursor:default;}
+.pdfprev [data-lbl]{cursor:move;}
+.pdfselect{display:flex;flex-direction:column;gap:4px;font-size:12px;margin:6px 0;}
+.pdfselect select{background:var(--bg-1);color:var(--text-0);border:1px solid var(--line-strong);border-radius:8px;padding:6px 8px;font-size:12.5px;}
+.pdfslider{display:grid;grid-template-columns:118px minmax(0,1fr) 36px;align-items:center;gap:8px;font-size:12px;margin:5px 0;}
+.pdfslider input{min-width:0;accent-color:var(--teal);}
+.pdfslider b{font-family:var(--mono);font-size:11.5px;text-align:right;font-weight:500;}
+.pdfcolor{display:flex;align-items:center;gap:10px;margin:6px 0;cursor:pointer;}
+.pdfcolor input{width:34px;height:26px;padding:0;border:1px solid var(--line-strong);border-radius:6px;background:none;cursor:pointer;flex:none;}
+.pdfcolor span{display:flex;flex-direction:column;font-size:12.5px;line-height:1.3;}
+.pdfcolor small{font-size:11px;color:var(--text-2);}
+.pdfsel{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line-strong);}
+.pdfsel-name{font-size:12px;margin-bottom:4px;word-break:break-word;}
+.pdfnudge{display:flex;align-items:center;gap:6px;font-size:12px;margin:6px 0;}
+.pdfnudge span{flex:1;}
+.pdfnudge .iconbtn{width:30px;height:28px;font-size:14px;}
 @media print{
   @page{size:A3 landscape;margin:8mm;}
   html,body{background:#fff;}
