@@ -791,7 +791,7 @@ function obsDisplay(obs) {
   return fmtVal(obs.val);
 }
 
-function glyphSvg(entries, selected, size) {
+function glyphSvg(entries, selected, size, colorFn) {
   size = size || 22;
   var r = size / 2 - 2.5, cx = size / 2 + 3, cy = size / 2 + 3, full = size + 6;
   var parts = ['<svg width="' + full + '" height="' + full + '" viewBox="0 0 ' + full + ' ' + full + '" xmlns="http://www.w3.org/2000/svg">'];
@@ -800,7 +800,7 @@ function glyphSvg(entries, selected, size) {
   parts.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + (r + 2) + '" fill="#FFFFFF"/>');
   var n = entries.length;
   entries.forEach(function (e, i) {
-    var color = obsColor(e.obs);
+    var color = (colorFn || obsColor)(e.obs);
     if (n === 1) { parts.push('<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="' + color + '"/>'); return; }
     var y0 = cy - r + (2 * r) * i / n, y1 = cy - r + (2 * r) * (i + 1) / n;
     var x0 = Math.sqrt(Math.max(0, r * r - (y0 - cy) * (y0 - cy)));
@@ -1010,7 +1010,8 @@ function buildWindLayer(obsList) {
 }
 
 // Inverse-distance interpolation (in the 0..4 "z" space) clipped to sampled grid areas, fading with distance from the nearest sample.
-function buildLabSurface(obsList, sampledGrids) {
+// Split in two so the map PDF can repaint the same field with other colours without recomputing it.
+function buildLabSurfaceField(obsList, sampledGrids) {
   var pts = obsList.filter(function (o) { return o.info.lat != null; });
   var gridIds = Object.keys(sampledGrids).filter(function (id) { return GRID_BY_ID[id]; });
   if (!pts.length || !gridIds.length) return null;
@@ -1042,13 +1043,12 @@ function buildLabSurface(obsList, sampledGrids) {
     ctx.fill();
   });
   var mask = ctx.getImageData(0, 0, W, H).data;
-  var img = ctx.createImageData(W, H);
+  var zs = new Float32Array(W * H), cover = new Float32Array(W * H);
   var P = pts.map(function (o) { return { x: (o.info.lon - minLon) * mx, y: (maxLat - o.info.lat) * my, z: o.z }; });
   var FADE_START = 16, FADE_END = 34;
   for (var py = 0; py < H; py++) {
     for (var px = 0; px < W; px++) {
-      var idx = (py * W + px) * 4;
-      var a = mask[idx + 3];
+      var a = mask[(py * W + px) * 4 + 3];
       if (!a) continue;
       var xm = (px + 0.5) * res, ym = (py + 0.5) * res;
       var sw = 0, sz = 0, dmin2 = Infinity, exact = null;
@@ -1064,14 +1064,37 @@ function buildLabSurface(obsList, sampledGrids) {
       var dmin = Math.sqrt(dmin2);
       var fade = Math.max(0, Math.min(1, (FADE_END - dmin) / (FADE_END - FADE_START)));
       if (fade <= 0) continue;
-      var c = rampRgb(z);
-      img.data[idx] = c[0]; img.data[idx + 1] = c[1]; img.data[idx + 2] = c[2];
-      var strength = 0.34 + 0.44 * Math.min(1, z / 1.6);
-      img.data[idx + 3] = Math.round(strength * fade * a);
+      zs[py * W + px] = z;
+      cover[py * W + px] = fade * a;
     }
   }
+  return { W: W, H: H, z: zs, cover: cover, bounds: [[minLat, minLon], [maxLat, maxLon]] };
+}
+
+// colorFn maps an interpolated z (0..4) to [r, g, b].
+function paintLabSurface(field, colorFn) {
+  var W = field.W, H = field.H;
+  var canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  var ctx = canvas.getContext("2d");
+  var img = ctx.createImageData(W, H);
+  for (var i = 0, n = W * H; i < n; i++) {
+    var cv = field.cover[i];
+    if (!cv) continue;
+    var z = field.z[i];
+    var c = colorFn(z);
+    var idx = i * 4;
+    img.data[idx] = c[0]; img.data[idx + 1] = c[1]; img.data[idx + 2] = c[2];
+    var strength = 0.34 + 0.44 * Math.min(1, z / 1.6);
+    img.data[idx + 3] = Math.round(strength * cv);
+  }
   ctx.putImageData(img, 0, 0);
-  return { url: canvas.toDataURL("image/png"), bounds: [[minLat, minLon], [maxLat, maxLon]] };
+  return { url: canvas.toDataURL("image/png"), bounds: field.bounds };
+}
+
+function buildLabSurface(obsList, sampledGrids) {
+  var field = buildLabSurfaceField(obsList, sampledGrids);
+  return field ? paintLabSurface(field, rampRgb) : null;
 }
 
 /* ---------------------------------------------------------------------
