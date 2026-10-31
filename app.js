@@ -156,7 +156,16 @@ function defaultRound() {
    Points and grids: merges the fixed KML data with custom points added
    manually, and helpers used across the app.
 --------------------------------------------------------------------- */
-function allPoints() { return POINTS.concat(state.customPoints); }
+// Points of a hidden or deleted temporary grid (see grids.js) are left out everywhere.
+function hiddenGridIds() {
+  var h = {};
+  (state.customGrids || []).forEach(function (g) { if (g.deleted || g.hidden) h[g.id] = true; });
+  return h;
+}
+function allPoints() {
+  var hidden = hiddenGridIds();
+  return POINTS.concat(state.customPoints.filter(function (p) { return !p.gridId || !hidden[p.gridId]; }));
+}
 function getPoint(id) {
   if (POINT_BY_ID[id]) return POINT_BY_ID[id];
   for (var i = 0; i < state.customPoints.length; i++) { if (state.customPoints[i].id === id) return state.customPoints[i]; }
@@ -260,6 +269,8 @@ var state = {
   reports: {},
   gridNotes: {},
   customPoints: [],
+  customGrids: [],
+  seeded: {},
   dateFilter: { mode: "all", date: "", from: "", to: "" },
   exportDlg: null,
   pdfDlg: null
@@ -273,6 +284,8 @@ var state = {
       state.reports = parsed.reports || {};
       state.gridNotes = parsed.gridNotes || {};
       state.customPoints = parsed.customPoints || [];
+      state.customGrids = parsed.customGrids || [];
+      state.seeded = parsed.seeded || {};
     }
   } catch (e) {}
 })();
@@ -304,7 +317,7 @@ function migrateOldPhotos() {
 
 function persist() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ reports: state.reports, gridNotes: state.gridNotes, customPoints: state.customPoints }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ reports: state.reports, gridNotes: state.gridNotes, customPoints: state.customPoints, customGrids: state.customGrids, seeded: state.seeded }));
   } catch (e) {
     showToast("warn", "Penyimpanan lokal penuh. Segera ekspor data sebagai cadangan.");
   }
@@ -357,7 +370,9 @@ function addPointMarker(p) {
   var marker = L.circleMarker([p.lat, p.lon], { radius: 5.5, weight: 1.8 });
   if (state.view !== "lab") marker.addTo(map);
   marker.on("click", function (e) {
-    if (state.pickMode) { onMapClick(e); return; }
+    if (state.pickMode || gridEdit) { onMapClick(e); return; }
+    markMapClickHandled(e);
+    showCoordReadout(L.latLng(p.lat, p.lon), true);
     selectPoint(p.id);
   });
   marker.bindTooltip(p.id, { permanent: true, direction: "top", offset: [0, -6], className: "point-label-tip", interactive: false });
@@ -404,7 +419,9 @@ function pointHoverHtml(id) {
     }
     return html;
   }
-  return '<span class="ph-id">' + esc(id) + '</span>' + roundBlock("Before Recovery", rb) + roundBlock("After Recovery", ra);
+  var pt = getPoint(id);
+  return '<span class="ph-id">' + esc(id) + '</span>' + (pt ? '<div class="ph-coord">' + esc(fmtLatLon(pt.lat, pt.lon)) + '</div>' : '') +
+    roundBlock("Before Recovery", rb) + roundBlock("After Recovery", ra);
 }
 
 /* Partial-progress grid fill: instead of an arbitrary left/right split,
@@ -454,7 +471,7 @@ function gridPatternUrl(g, round) {
   var members = gridMembers(g).map(getPoint).filter(Boolean);
   if (!members.length) return null;
   var reps = members.map(function (p) { return { p: p, r: repOf(p.id, round) }; });
-  var key = g.id + "|" + round + "|" + reps.map(function (x) {
+  var key = g.id + "|" + round + "|" + (g.temp ? g.ring.join(";") + "|" : "") + reps.map(function (x) {
     var statusChar = x.r.issue ? "X" : (x.r.done ? "1" : "0");
     var hatchChar = (x.r.issue || (x.r.notes && x.r.notes.trim())) ? "H" : "-";
     return statusChar + hatchChar;
@@ -526,35 +543,46 @@ function initMap() {
   L.imageOverlay(BASEMAP_URL, IMAGE_BOUNDS, { attribution: BASEMAP_ATTR }).addTo(map);
   map.setMaxBounds(L.latLngBounds(IMAGE_BOUNDS).pad(0.25));
   L.control.scale({ metric: true, imperial: false, position: "bottomleft" }).addTo(map);
+  initCoordReadout();
   map.fitBounds(allBounds(), { padding: [36, 36] });
   map.on("click", onMapClick);
 
-  GRIDS.forEach(function (g) {
-    var poly = L.polygon(g.ring, { weight: 1.4, fillOpacity: 0.28 }).addTo(map);
-    poly.bindPopup("", { closeButton: true, className: "grid-info-popup" });
-    poly.on("click", function (e) {
-      if (state.pickMode) { onMapClick(e); return; }
-      if (state.view === "lab") {
-        poly.setPopupContent(labGridPopupHtml(g));
-        poly.openPopup(e.latlng);
-        return;
-      }
-      selectGrid(g.id);
-      var stats = gridStats(g, state.round);
-      var html = '<div class="gp-title">' + esc(g.label) + '</div>' +
-        '<div class="gp-area">Luas area: ' + formatArea(GRID_AREA[g.id]) + '</div>' +
-        '<div class="gp-pct">' + Math.round(stats.pct * 100) + '% disampling (' + stats.done + ' dari ' + stats.total + ' titik)</div>';
-      poly.setPopupContent(html);
-      poly.openPopup(e.latlng);
-    });
-    poly.bindTooltip(g.label, { permanent: true, direction: "center", className: "grid-label-tip", interactive: false });
-    gridLayers[g.id] = poly;
-    ensureGridPattern(g.id);
-  });
+  GRIDS.forEach(function (g) { addGridLayer(g, false); });
 
   allPoints().forEach(addPointMarker);
 
   actualLayer = L.layerGroup().addTo(map);
+}
+
+// toBack: grids added after the point markers go underneath them so points stay clickable.
+function addGridLayer(g, toBack) {
+  var poly = L.polygon(g.ring, { weight: 1.4, fillOpacity: 0.28 }).addTo(map);
+  poly.bindPopup("", { closeButton: true, className: "grid-info-popup" });
+  poly.on("click", function (e) {
+    g = GRID_BY_ID[g.id] || g;
+    if (gridEdit) { onMapClick(e); return; }
+    if (state.pickMode) { onMapClick(e); return; }
+    markMapClickHandled(e);
+    var here = coordShortHtml(e.latlng.lat, e.latlng.lng) + gridTempActionsHtml(g, true);
+    if (state.view === "lab") {
+      poly.setPopupContent(labGridPopupHtml(g) + here);
+      poly.openPopup(e.latlng);
+      showCoordReadout(e.latlng, true);
+      return;
+    }
+    selectGrid(g.id);
+    var stats = gridStats(g, state.round);
+    var html = '<div class="gp-title">' + esc(g.label) + '</div>' +
+      '<div class="gp-area">Luas area: ' + formatArea(GRID_AREA[g.id]) + '</div>' +
+      '<div class="gp-pct">' + Math.round(stats.pct * 100) + '% disampling (' + stats.done + ' dari ' + stats.total + ' titik)</div>' + here;
+    poly.setPopupContent(html);
+    poly.openPopup(e.latlng);
+    showCoordReadout(e.latlng, true);
+  });
+  poly.bindTooltip(g.label, { permanent: true, direction: "center", className: "grid-label-tip", interactive: false });
+  gridLayers[g.id] = poly;
+  ensureGridPattern(g.id);
+  if (toBack) poly.bringToBack();
 }
 
 function gridStats(g, round) {
@@ -643,10 +671,16 @@ function updateMapStyles() {
     var showFill = state.showGridFill || isSel;
     var layer = gridLayers[g.id];
     var baseOpacity = stats.hatch > 0 ? 0.42 : 0.26;
+    if (gridEdit && gridEdit.id === g.id) {
+      layer.setStyle({ color: "#FFD400", fillColor: "#FFD400", weight: 2.6, dashArray: null, fillOpacity: 0.12 });
+      layer.setTooltipContent(esc(gridEdit.name || g.label));
+      return;
+    }
     layer.setStyle({
       color: tier.stroke,
       fillColor: tier.fill,
       weight: isSel ? 3 : 1.6,
+      dashArray: g.temp ? "7 5" : null,
       fillOpacity: showFill ? (isSel ? 0.5 : baseOpacity) : 0
     });
     var needsPattern = (stats.pct > 0 && stats.pct < 1) || stats.hatch > 0;
@@ -706,8 +740,21 @@ function updateActualLayer() {
   });
 }
 
+// Grid and point layers bubble their clicks up to the map; the first
+// handler that deals with a click marks it so the map does not also open
+// the coordinate popup on top of it.
+function markMapClickHandled(e) {
+  if (e && e.originalEvent) e.originalEvent._mapClickHandled = true;
+}
+function mapClickHandled(e) {
+  return !!(e && e.originalEvent && e.originalEvent._mapClickHandled);
+}
+
 function onMapClick(e) {
-  if (!state.pickMode) return;
+  if (mapClickHandled(e)) return;
+  markMapClickHandled(e);
+  if (gridEdit) { gridEditMapClick(e.latlng); return; }
+  if (!state.pickMode) { showCoordPopup(e.latlng); return; }
   var lat = e.latlng.lat, lon = e.latlng.lng;
   if (state.pickMode.type === "actual") {
     updateReport(state.pickMode.pointId, state.pickMode.round, { actualLat: lat, actualLon: lon });
@@ -720,6 +767,164 @@ function onMapClick(e) {
     state.pickMode = null;
     render();
   }
+}
+
+/* ---------------------------------------------------------------------
+   Coordinates on the map: a readout in the corner follows the cursor
+   (or shows the last tapped spot on touch screens), and clicking an
+   empty spot opens a popup with that spot's coordinates in decimal
+   degrees, degrees-minutes-seconds and UTM, the grid it falls in, the
+   nearest sampling point, plus copy and Google Maps buttons. Grid and
+   point popups also list the coordinates. All values are WGS 84.
+--------------------------------------------------------------------- */
+var coordReadoutEl = null, coordPinned = null, coordPopup = null, coordMark = null;
+var NO_HOVER = !!(window.matchMedia && window.matchMedia("(hover: none)").matches);
+
+function fmtLatLon(lat, lon) { return lat.toFixed(6) + ", " + lon.toFixed(6); }
+
+function fmtDms(v, pos, neg) {
+  var a = Math.abs(v), d = Math.floor(a), mf = (a - d) * 60, m = Math.floor(mf), sec = (mf - m) * 60;
+  if (sec >= 59.95) { sec = 0; m++; }
+  if (m >= 60) { m = 0; d++; }
+  return d + "°" + ("0" + m).slice(-2) + "′" + (sec < 10 ? "0" : "") + sec.toFixed(1) + "″" + (v < 0 ? neg : pos);
+}
+
+// WGS 84 to UTM (Snyder's series), accurate to well under a metre within a zone.
+function latLonToUtm(lat, lon) {
+  var a = 6378137, f = 1 / 298.257223563, k0 = 0.9996;
+  var zone = Math.floor((lon + 180) / 6) + 1;
+  var lon0 = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180;
+  var e2 = f * (2 - f), ep2 = e2 / (1 - e2);
+  var phi = lat * Math.PI / 180, lam = lon * Math.PI / 180;
+  var sin = Math.sin(phi), cos = Math.cos(phi), tan = Math.tan(phi);
+  var N = a / Math.sqrt(1 - e2 * sin * sin);
+  var T = tan * tan, C = ep2 * cos * cos, A = cos * (lam - lon0);
+  var e4 = e2 * e2, e6 = e4 * e2;
+  var M = a * ((1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256) * phi - (3 * e2 / 8 + 3 * e4 / 32 + 45 * e6 / 1024) * Math.sin(2 * phi) +
+    (15 * e4 / 256 + 45 * e6 / 1024) * Math.sin(4 * phi) - (35 * e6 / 3072) * Math.sin(6 * phi));
+  var E = k0 * N * (A + (1 - T + C) * Math.pow(A, 3) / 6 + (5 - 18 * T + T * T + 72 * C - 58 * ep2) * Math.pow(A, 5) / 120) + 500000;
+  var Nn = k0 * (M + N * tan * (A * A / 2 + (5 - T + 9 * C + 4 * C * C) * Math.pow(A, 4) / 24 + (61 - 58 * T + T * T + 600 * C - 330 * ep2) * Math.pow(A, 6) / 720));
+  if (lat < 0) Nn += 10000000;
+  return { zone: zone, hemi: lat < 0 ? "S" : "N", e: E, n: Nn };
+}
+function fmtUtm(lat, lon) {
+  var u = latLonToUtm(lat, lon);
+  return "UTM " + u.zone + u.hemi + " · E " + Math.round(u.e) + " · N " + Math.round(u.n);
+}
+
+function pointInRing(lat, lon, ring) {
+  var inside = false;
+  for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    var yi = ring[i][0], xi = ring[i][1], yj = ring[j][0], xj = ring[j][1];
+    if (((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function gridAt(lat, lon) {
+  for (var i = 0; i < GRIDS.length; i++) if (pointInRing(lat, lon, GRIDS[i].ring)) return GRIDS[i];
+  return null;
+}
+function nearestPoint(lat, lon) {
+  var best = null, bestD = Infinity;
+  allPoints().forEach(function (p) {
+    var dd = distanceMeters(lat, lon, p.lat, p.lon);
+    if (dd < bestD) { bestD = dd; best = p; }
+  });
+  return best ? { p: best, d: bestD } : null;
+}
+
+function coordActionsHtml(lat, lon) {
+  var dd = fmtLatLon(lat, lon);
+  return '<div class="coord-actions">' +
+    '<button type="button" class="coord-btn" data-action="copy-coord" data-text="' + esc(dd) + '">Salin koordinat</button>' +
+    '<a class="coord-btn" href="https://www.google.com/maps?q=' + lat.toFixed(6) + ',' + lon.toFixed(6) + '" target="_blank" rel="noopener">Google Maps</a></div>';
+}
+
+// Short block appended to grid popups.
+function coordShortHtml(lat, lon) {
+  return '<div class="coord-short"><div class="coord-k">Koordinat titik yang diklik</div>' +
+    '<div class="coord-v">' + esc(fmtLatLon(lat, lon)) + '</div>' +
+    '<div class="coord-sub">' + esc(fmtUtm(lat, lon)) + '</div>' + coordActionsHtml(lat, lon) + '</div>';
+}
+
+function coordPopupHtml(lat, lon) {
+  var g = gridAt(lat, lon), near = nearestPoint(lat, lon);
+  var rows = [
+    ["Lintang, bujur", fmtLatLon(lat, lon)],
+    ["DMS", fmtDms(lat, "N", "S") + " " + fmtDms(lon, "E", "W")],
+    ["UTM", fmtUtm(lat, lon).replace(/^UTM /, "")],
+    ["Area", g ? g.label : "Di luar area grid"]
+  ];
+  if (near) rows.push(["Titik terdekat", near.p.id + " · " + (near.d < 10 ? near.d.toFixed(1).replace(".", ",") : Math.round(near.d)) + " m"]);
+  return '<div class="gp-title">Koordinat titik</div>' +
+    '<table class="coord-table">' + rows.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>'; }).join("") + '</table>' +
+    coordActionsHtml(lat, lon) +
+    '<div class="coord-note">WGS 84. Klik tempat lain di peta untuk koordinat lain.</div>';
+}
+
+function showCoordPopup(latlng) {
+  if (!map) return;
+  if (!coordPopup) {
+    coordPopup = L.popup({ className: "grid-info-popup coord-popup", maxWidth: 300, autoPanPadding: [20, 20] });
+    coordPopup.on("remove", function () { if (coordMark) { map.removeLayer(coordMark); coordMark = null; } });
+  }
+  if (coordMark) map.removeLayer(coordMark);
+  coordMark = L.circleMarker(latlng, { radius: 6, color: "#FFFFFF", weight: 2, fillColor: "#E6007E", fillOpacity: 1, interactive: false }).addTo(map);
+  coordPopup.setLatLng(latlng).setContent(coordPopupHtml(latlng.lat, latlng.lng)).openOn(map);
+  showCoordReadout(latlng, true);
+}
+
+var CoordReadout = L.Control.extend({
+  options: { position: "bottomleft" },
+  onAdd: function () {
+    var el = L.DomUtil.create("div", "coord-readout");
+    L.DomEvent.disableClickPropagation(el);
+    coordReadoutEl = el;
+    showCoordReadout(null);
+    return el;
+  }
+});
+
+function initCoordReadout() {
+  map.addControl(new CoordReadout());
+  map.on("mousemove", function (e) { showCoordReadout(e.latlng, false); });
+  // Leaflet's mouseout also fires when leaving a marker or popup, so watch the container itself.
+  map.getContainer().addEventListener("mouseleave", function () { showCoordReadout(coordPinned, true); });
+}
+
+// pinned: a clicked/tapped spot, kept when the cursor leaves the map.
+function showCoordReadout(latlng, pinned) {
+  if (pinned && latlng) coordPinned = latlng;
+  var el = coordReadoutEl;
+  if (!el) return;
+  if (!latlng) {
+    el.className = "coord-readout coord-readout-empty";
+    el.innerHTML = NO_HOVER ? "Ketuk peta untuk melihat koordinat" : "Arahkan kursor ke peta untuk melihat koordinat";
+    return;
+  }
+  el.className = "coord-readout";
+  el.innerHTML = '<span class="cr-k">' + (pinned ? "Titik diklik" : "Kursor") + '</span>' +
+    '<span class="cr-v">' + esc(fmtLatLon(latlng.lat, latlng.lng)) + '</span>' +
+    '<span class="cr-sub">' + esc(fmtUtm(latlng.lat, latlng.lng)) + '</span>';
+}
+
+function copyText(text) {
+  function fallback() {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+    return ok;
+  }
+  var p = navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(text).then(function () { return true; }, fallback) : Promise.resolve(fallback());
+  p.then(function (ok) {
+    showToast(ok ? "success" : "warn", ok ? "Koordinat disalin: " + text : "Tidak dapat menyalin otomatis. Koordinat: " + text);
+  });
 }
 
 function focusPoint(id) {
@@ -769,7 +974,7 @@ function saveNewPoint() {
   if (getPoint(code)) { showToast("warn", "Kode titik sudah dipakai. Gunakan kode lain."); return; }
   if (draft.lat == null || draft.lon == null) { showToast("warn", "Tentukan lokasi titik terlebih dahulu, ketik koordinat atau tandai di peta."); return; }
 
-  var point = { id: code, gridId: draft.gridId || null, type: draft.type || "air", lat: draft.lat, lon: draft.lon, custom: true, createdAt: Date.now() };
+  var point = { id: code, gridId: draft.gridId || null, type: draft.type || "air", lat: draft.lat, lon: draft.lon, custom: true, createdAt: Date.now(), updatedAt: Date.now() };
   state.customPoints.push(point);
   persist();
   if (map) addPointMarker(point);
@@ -967,6 +1172,7 @@ function exportBasePayload() {
     exportedAt: new Date().toISOString(),
     totalPoints: allPoints().length,
     totalGrids: GRIDS.length,
+    customGrids: state.customGrids,
     reports: {},
     gridNotes: state.gridNotes,
     customPoints: state.customPoints,
@@ -1855,15 +2061,25 @@ function mergeImport(data, opts) {
   var updated = 0, addedPoints = 0, photosFilled = 0;
   var photoWrites = [];
 
+  updated += mergeCustomGrids(data && data.customGrids);
   var existingIds = {};
-  allPoints().forEach(function (p) { existingIds[p.id] = true; });
+  POINTS.forEach(function (p) { existingIds[p.id] = true; });
+  state.customPoints.forEach(function (p) { existingIds[p.id] = true; });
   incomingCustom.forEach(function (p) {
-    if (!p || !p.id || existingIds[p.id]) return;
+    if (!p || !p.id) return;
     if (typeof p.lat !== "number" || typeof p.lon !== "number") return;
-    state.customPoints.push({ id: p.id, gridId: p.gridId || null, type: p.type || "air", lat: p.lat, lon: p.lon, custom: true, createdAt: p.createdAt || Date.now() });
+    if (existingIds[p.id]) {
+      // A custom point moved on another device (e.g. while editing a temporary grid) carries a newer updatedAt.
+      var cur = state.customPoints.filter(function (cp) { return cp.id === p.id; })[0];
+      if (cur && (p.updatedAt || 0) > (cur.updatedAt || 0)) {
+        cur.lat = p.lat; cur.lon = p.lon; cur.gridId = p.gridId || null; cur.type = p.type || cur.type; cur.updatedAt = p.updatedAt;
+        updated++;
+      }
+      return;
+    }
+    state.customPoints.push({ id: p.id, gridId: p.gridId || null, type: p.type || "air", lat: p.lat, lon: p.lon, custom: true, createdAt: p.createdAt || Date.now(), updatedAt: p.updatedAt || 0 });
     existingIds[p.id] = true;
     addedPoints++;
-    if (map) addPointMarker(state.customPoints[state.customPoints.length - 1]);
   });
 
   Object.keys(incoming).forEach(function (pid) {
@@ -1912,6 +2128,7 @@ function mergeImport(data, opts) {
 
 function finishImport(updated, addedPoints, photoFailure, opts, photosFilled) {
   opts = opts || {};
+  refreshGrids();
   persist();
   render();
   if (!opts.silent) {
@@ -2200,7 +2417,9 @@ function render() {
 
   document.getElementById("metaChip").textContent = total + " titik pada " + GRIDS.length + " area grid";
   document.getElementById("kpiTotal").textContent = total;
-  document.getElementById("kpiTotalSub").textContent = GRIDS.length + " area grid" + (state.customPoints.length ? " termasuk " + state.customPoints.length + " titik tambahan" : "");
+  var extraPts = total - POINTS.length;
+  document.getElementById("kpiTotalSub").textContent = GRIDS.length + " area grid" + (extraPts > 0 ? " termasuk " + extraPts + " titik tambahan" : "");
+  updateGridMgrButton();
 
   document.getElementById("roundBeforeBtn").className = "roundbtn before" + (round === "before" ? " active" : "");
   document.getElementById("roundAfterBtn").className = "roundbtn after" + (round === "after" ? " active" : "");
@@ -2419,6 +2638,7 @@ function renderBottomPanel(gridStatsList) {
       '<div class="griddetail-head"><p class="panel-title">' + esc(gr.label) + '</p><span class="griddetail-pct">' + Math.round(stats.pct * 100) + '%</span></div>' +
       '<p class="griddetail-remain">' + (stats.total - stats.done) + ' dari ' + stats.total + ' titik belum disampling pada tahap aktif</p>' +
       '<p class="griddetail-area">Luas area: ' + formatArea(GRID_AREA[gr.id]) + '</p>' +
+      gridTempActionsHtml(gr, false) +
       '<ul class="memberlist">' + members + '</ul>' +
       '</div>' +
       '<div class="detailcard">' +
@@ -2631,6 +2851,7 @@ function onAction(e) {
 
   if (action.indexOf("lab-") === 0) { labOnAction(action, el, e); return; }
   if (action.indexOf("pdf-") === 0) { pdfOnAction(action, el, e); return; }
+  if (action.indexOf("gm-") === 0 || action.indexOf("ge-") === 0) { gridOnAction(action, el, e); return; }
   if (action === "set-view") { setView(el.getAttribute("data-view")); return; }
   if (action === "select-point") selectPoint(id);
   else if (action === "select-grid") selectGrid(id);
@@ -2662,6 +2883,7 @@ function onAction(e) {
   }
   else if (action === "export-points-excel") exportPointsExcel();
   else if (action === "export-map-pdf") openPdfDialog();
+  else if (action === "copy-coord") copyText(el.getAttribute("data-text"));
   else if (action === "toggle-actual") toggleActual();
   else if (action === "toggle-fullscreen") toggleFullscreen();
   else if (action === "close-toast") { state.toast = null; renderToast(); }
@@ -2728,6 +2950,7 @@ function onInput(e) {
   if (t.id === "searchInput") { state.search = t.value; render(); return; }
   if (!field) return;
   if (field.indexOf("pdf-") === 0) { if (t.type === "range" || t.type === "color") pdfOnField(field, t); return; }
+  if (field.indexOf("gm-") === 0 || field.indexOf("ge-") === 0) { gridOnField(field, t, "input"); return; }
   if (field.indexOf("lab-") === 0) { labOnInput(field, t); return; }
 
   if (field === "newcode") { state.newPointDraft.code = t.value; return; }
@@ -2766,6 +2989,7 @@ function onChange(e) {
   if (t.id === "labImportInput") { labHandleImportInput(e); return; }
   if (!field) return;
   if (field.indexOf("pdf-") === 0) { if (t.type !== "range" && t.type !== "color") pdfOnField(field, t); return; }
+  if (field.indexOf("gm-") === 0 || field.indexOf("ge-") === 0) { gridOnField(field, t, "change"); return; }
   if (field.indexOf("lab-") === 0) { labOnChange(field, t); return; }
 
   if (field === "date-filter") {
@@ -2838,12 +3062,15 @@ function boot() {
   document.getElementById("fullscreenIcon").innerHTML = ICONS.expand;
 
   applyTheme();
+  seedCustomGrids();
+  rebuildGrids();
   initMap();
   labBoot();
   applyLabelVisibility();
   var actualBtn = document.getElementById("toggleActual");
   if (actualBtn) actualBtn.className = "labeltoggle" + (state.showActual ? " active" : "");
   render();
+  renderGridManager();
   migrateOldPhotos();
   syncFromRemote();
 
@@ -2859,6 +3086,8 @@ function boot() {
     if (e.key !== "Escape") return;
     if (state.exportDlg && !state.exportDlg.busy) closeExportDialog();
     if (state.pdfDlg) closePdfDialog();
+    if (gridMgrOpen) closeGridManager();
+    else if (gridEdit && !(e.target && e.target.getAttribute && e.target.getAttribute("data-field") === "ge-name")) geCancel();
   });
   window.addEventListener("afterprint", onAfterPrint);
 }
