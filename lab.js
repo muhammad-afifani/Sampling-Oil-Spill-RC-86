@@ -825,7 +825,7 @@ function labMarkerPopupHtml(o) {
   var cfg = state.labCfg;
   var g = geoFromLeak(o.info.lat, o.info.lon);
   var inCone = Math.abs(angDiff(g.bearing, cfg.windTo)) <= cfg.cone;
-  var html = '<span class="ph-id">' + esc(o.info.label) + '</span><div class="ph-notes">' + esc(locGridLabel(o.loc)) + ' · ' + esc(MATRIX_META[o.matrix].label) + '</div>';
+  var html = '<span class="ph-id">' + esc(o.info.label) + '</span><div class="ph-coord">' + esc(fmtLatLon(o.info.lat, o.info.lon)) + '</div><div class="ph-notes">' + esc(locGridLabel(o.loc)) + ' · ' + esc(MATRIX_META[o.matrix].label) + '</div>';
   o.entries.forEach(function (e) {
     var cls = sampleClass(e.sample);
     html += '<div class="ph-round"><span class="ph-round-label">' + esc(depthLabel(e.depth)) + ':</span> ' +
