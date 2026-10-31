@@ -761,7 +761,8 @@ function styleGridsForLab(sampledGrids) {
     var layer = gridLayers[g.id];
     if (!layer) return;
     var sampled = !!sampledGrids[g.id];
-    layer.setStyle({ color: "#FFFFFF", weight: sampled ? 1.4 : 1, opacity: sampled ? 0.75 : 0.4, fillOpacity: 0 });
+    if (gridEdit && gridEdit.id === g.id) { layer.setStyle({ color: "#FFD400", weight: 2.6, opacity: 1, dashArray: null, fillOpacity: 0.12 }); return; }
+    layer.setStyle({ color: "#FFFFFF", weight: sampled ? 1.4 : 1, opacity: sampled ? 0.75 : 0.4, dashArray: g.temp ? "7 5" : null, fillOpacity: 0 });
     layer.setTooltipContent(esc(g.label));
   });
 }

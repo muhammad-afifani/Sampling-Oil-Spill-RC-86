@@ -6,7 +6,7 @@
 <title>Peta Sampling Oil Spill</title>
 <meta name="description" content="Peta dan dashboard sampling air dan sedimen pada masa sebelum dan sesudah pemulihan lahan terdampak oil spill.">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
-<link rel="stylesheet" href="styles.css?v=20261031a">
+<link rel="stylesheet" href="styles.css?v=20261031b">
 </head>
 <body>
 <script>(function(){var v="lab";try{var h=(location.hash||"").toLowerCase();v=h==="#lab"?"lab":h==="#progres"?"progress":(localStorage.getItem("oilspill_view")==="progress"?"progress":"lab");}catch(e){}document.body.className=v==="progress"?"view-progress":"view-lab";})();</script>
@@ -162,6 +162,7 @@
           <h2 id="mapTitle">Peta Grid Sampling</h2>
           <div class="headtop-right">
             <span class="roundtag progress-only" id="roundTag">Before Recovery</span>
+            <button type="button" class="btn" data-action="gm-open" id="gridMgrBtn" title="Tampilkan, sembunyikan, ganti nama, ubah bentuk, pindahkan, atau gambar grid sementara">Kelola Grid</button>
             <button type="button" class="btn" data-action="export-map-pdf" title="Atur area, perbesaran, dan isi peta, lalu cetak beserta legenda dan informasi koordinat sebagai PDF">Ekspor PDF</button>
             <button type="button" class="iconbtn" data-action="toggle-fullscreen" id="fullscreenBtn" aria-label="Tampilkan peta layar penuh" title="Tampilkan peta layar penuh">
               <span id="fullscreenIcon"></span>
@@ -183,6 +184,7 @@
       <div class="mapstage">
         <div id="map"></div>
         <div class="pickbanner" id="pickBanner" style="display:none"></div>
+        <div class="gridedit-bar" id="gridEditBar" style="display:none"></div>
       </div>
       <div class="legend progress-only">
         <div class="legend-item"><span class="legend-swatch" style="background:rgba(242,169,60,0.35);border:1px solid #F2A93C"></span>Grid belum mulai disampling</div>
@@ -221,13 +223,15 @@
 <div id="printSheetRoot" class="print-only"></div>
 <div id="modalRoot"></div>
 <div id="exportRoot"></div>
+<div id="gridMgrRoot"></div>
 <div id="pdfRoot"></div>
 <div id="vizTip" class="viztip" role="tooltip"></div>
 
 <script src="vendor/leaflet/leaflet.js"></script>
-<script src="app.js?v=20261031a"></script>
-<script src="lab-xlsx.js?v=20261031a"></script>
-<script src="lab.js?v=20261031a"></script>
-<script src="map-pdf.js?v=20261031a"></script>
+<script src="app.js?v=20261031b"></script>
+<script src="grids.js?v=20261031b"></script>
+<script src="lab-xlsx.js?v=20261031b"></script>
+<script src="lab.js?v=20261031b"></script>
+<script src="map-pdf.js?v=20261031b"></script>
 </body>
 </html>
